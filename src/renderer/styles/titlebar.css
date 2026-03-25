@@ -15,3 +15,31 @@
   color: rgba(255, 255, 255, 0.35);
   -webkit-app-region: drag;
 }
+
+.titlebar__help-btn {
+  position: absolute;
+  right: 148px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  -webkit-app-region: no-drag;
+  transition: color 0.15s ease, background 0.15s ease;
+  padding: 0;
+  line-height: 1;
+}
+
+.titlebar__help-btn:hover {
+  color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.08);
+}

@@ -10,6 +10,7 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import SettingsWindow from './components/Settings/SettingsWindow';
 import CommandPalette from './components/CommandPalette/CommandPalette';
 import BrowserPane from './components/Browser/BrowserPane';
+import Tutorial from './components/Tutorial/Tutorial';
 
 const DEFAULT_SIDEBAR_WIDTH = 240;
 
@@ -75,6 +76,7 @@ export default function App() {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [browserOpen, setBrowserOpen] = useState(true);
   const [browserWidth, setBrowserWidth] = useState(420);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
 
   useKeyboardShortcuts(focusedPaneId, setSettingsOpen, () => setBrowserOpen(o => !o));
 
@@ -104,6 +106,18 @@ export default function App() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [shortcuts, commandPaletteOpen]);
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH);
+
+  // Open tutorial on first launch
+  useEffect(() => {
+    if (!localStorage.getItem('wmux-tutorial-seen')) {
+      setTutorialOpen(true);
+    }
+  }, []);
+
+  const handleTutorialClose = useCallback(() => {
+    localStorage.setItem('wmux-tutorial-seen', '1');
+    setTutorialOpen(false);
+  }, []);
 
   // Create first workspace on launch
   useEffect(() => {
@@ -218,8 +232,9 @@ export default function App() {
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+      {tutorialOpen && <Tutorial onClose={handleTutorialClose} />}
       {settingsOpen && <SettingsWindow onClose={() => setSettingsOpen(false)} />}
-      <Titlebar title={titlebarText} />
+      <Titlebar title={titlebarText} onHelpClick={() => setTutorialOpen(true)} />
 
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         {sidebarVisible && (
