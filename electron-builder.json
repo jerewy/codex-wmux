@@ -1,0 +1,24 @@
+{
+  "appId": "com.wmux.app",
+  "productName": "wmux",
+  "directories": {
+    "output": "release"
+  },
+  "files": [
+    "dist/**/*",
+    "node_modules/**/*"
+  ],
+  "win": {
+    "target": ["nsis", "portable"],
+    "icon": "resources/icons/icon.ico"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true
+  },
+  "extraResources": [
+    { "from": "resources/themes", "to": "themes" },
+    { "from": "resources/sounds", "to": "sounds" },
+    { "from": "src/shell-integration", "to": "shell-integration" }
+  ]
+}
