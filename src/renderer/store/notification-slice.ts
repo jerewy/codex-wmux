@@ -3,6 +3,8 @@ import { v4 as uuid } from 'uuid';
 import { NotificationInfo, SurfaceId, WorkspaceId } from '../../shared/types';
 import { WorkspaceSlice } from './workspace-slice';
 
+const MAX_NOTIFICATIONS = 200;
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface NotificationSlice {
@@ -33,9 +35,16 @@ export const createNotificationSlice: StateCreator<
       read: false,
     };
 
-    set((state) => ({
-      notifications: [...state.notifications, newNotification],
-    }));
+    set((state) => {
+      let updated = [...state.notifications, newNotification];
+      if (updated.length > MAX_NOTIFICATIONS) {
+        const readToEvict = updated.filter((n) => n.read);
+        const evictCount = updated.length - MAX_NOTIFICATIONS;
+        const evictIds = new Set(readToEvict.slice(0, evictCount).map((n) => n.id));
+        updated = updated.filter((n) => !evictIds.has(n.id));
+      }
+      return { notifications: updated };
+    });
 
     // Increment unreadCount on the workspace
     const { workspaceId } = notification;

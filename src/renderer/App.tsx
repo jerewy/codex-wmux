@@ -3,7 +3,7 @@ import { v4 as uuid } from 'uuid';
 import { useStore } from './store';
 import { PaneId, SurfaceId, WorkspaceId, WorkspaceInfo, SplitNode } from '../shared/types';
 import SplitContainer from './components/SplitPane/SplitContainer';
-import { updateRatio, getAllPaneIds } from './store/split-utils';
+import { updateRatio, getAllPaneIds, findLeaf } from './store/split-utils';
 import Sidebar from './components/Sidebar/Sidebar';
 import Titlebar from './components/Titlebar/Titlebar';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
@@ -69,6 +69,10 @@ export default function App() {
     updateSplitTree,
     sidebarVisible,
     shortcuts,
+    notifications,
+    markRead,
+    markAllRead,
+    selectSurface,
   } = useStore();
 
   const [focusedPaneId, setFocusedPaneId] = useState<PaneId | null>(null);
@@ -77,8 +81,7 @@ export default function App() {
   const [browserOpen, setBrowserOpen] = useState(true);
   const [browserWidth, setBrowserWidth] = useState(420);
   const [tutorialOpen, setTutorialOpen] = useState(false);
-
-  useKeyboardShortcuts(focusedPaneId, setSettingsOpen, () => setBrowserOpen(o => !o));
+  const [notifPanelOpen, setNotifPanelOpen] = useState(false);
 
   // Global keyboard listener for command palette toggle (Ctrl+Shift+P)
   useEffect(() => {
@@ -227,6 +230,41 @@ export default function App() {
     setCommandPaletteOpen(false);
   }, []);
 
+  const workspaceNames = React.useMemo(() => {
+    const map = new Map<string, string>();
+    for (const ws of workspaces) map.set(ws.id, ws.title);
+    return map;
+  }, [workspaces]);
+
+  const handleNotificationJump = useCallback(
+    (workspaceId: WorkspaceId, surfaceId: SurfaceId, _paneId?: PaneId) => {
+      selectWorkspace(workspaceId);
+      const ws = useStore.getState().workspaces.find((w) => w.id === workspaceId);
+      if (!ws) return;
+      function findPaneForSurface(node: SplitNode): { paneId: PaneId; index: number } | null {
+        if (node.type === 'leaf') {
+          const idx = node.surfaces.findIndex((s) => s.id === surfaceId);
+          if (idx !== -1) return { paneId: node.paneId, index: idx };
+          return null;
+        }
+        return findPaneForSurface(node.children[0]) || findPaneForSurface(node.children[1]);
+      }
+      const found = findPaneForSurface(ws.splitTree);
+      if (found) {
+        setFocusedPaneId(found.paneId);
+        selectSurface(workspaceId, found.paneId, found.index);
+      }
+      markRead(surfaceId);
+    },
+    [selectWorkspace, markRead, selectSurface],
+  );
+
+  const handleToggleNotifPanel = useCallback(() => {
+    setNotifPanelOpen((o) => !o);
+  }, []);
+
+  useKeyboardShortcuts(focusedPaneId, setSettingsOpen, () => setBrowserOpen(o => !o), handleToggleNotifPanel);
+
   // Derive a title for the titlebar: active workspace title or blank
   const titlebarText = activeWorkspace?.title ?? '';
 
@@ -238,6 +276,12 @@ export default function App() {
         title={titlebarText}
         onHelpClick={() => setTutorialOpen(true)}
         onDevToolsClick={() => window.wmux?.system?.toggleDevTools?.()}
+        notifications={notifications}
+        workspaceNames={workspaceNames}
+        notificationPanelOpen={notifPanelOpen}
+        onToggleNotificationPanel={handleToggleNotifPanel}
+        onNotificationJump={handleNotificationJump}
+        onMarkAllNotificationsRead={() => markAllRead()}
       />
 
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>

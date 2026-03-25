@@ -42,6 +42,7 @@ export function useKeyboardShortcuts(
   focusedPaneId: PaneId | null,
   onOpenSettings?: (open: boolean) => void,
   onToggleBrowser?: () => void,
+  onToggleNotifications?: () => void,
 ): void {
   const {
     shortcuts,
@@ -179,6 +180,11 @@ export function useKeyboardShortcuts(
           break;
         }
 
+        case 'showNotifications': {
+          onToggleNotifications?.();
+          break;
+        }
+
         // Unimplemented actions — log for now
         default:
           console.log(`[wmux] Shortcut triggered: ${action}`);
@@ -205,6 +211,8 @@ export function useKeyboardShortcuts(
     prevSurface,
     closeSurface,
     onOpenSettings,
+    onToggleBrowser,
+    onToggleNotifications,
   ]);
 
   // Ctrl+1 through Ctrl+9 — select workspace by index
