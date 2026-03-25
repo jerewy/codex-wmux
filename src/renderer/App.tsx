@@ -6,6 +6,8 @@ import { updateRatio, getAllPaneIds } from './store/split-utils';
 import Sidebar from './components/Sidebar/Sidebar';
 import Titlebar from './components/Titlebar/Titlebar';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import SettingsWindow from './components/Settings/SettingsWindow';
+import CommandPalette from './components/CommandPalette/CommandPalette';
 
 const DEFAULT_SIDEBAR_WIDTH = 200;
 
@@ -21,11 +23,40 @@ export default function App() {
     updateWorkspaceMetadata,
     updateSplitTree,
     sidebarVisible,
+    shortcuts,
   } = useStore();
 
   const [focusedPaneId, setFocusedPaneId] = useState<PaneId | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
 
-  useKeyboardShortcuts(focusedPaneId);
+  useKeyboardShortcuts(focusedPaneId, setSettingsOpen);
+
+  // Global keyboard listener for command palette toggle (Ctrl+Shift+P)
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent): void {
+      const binding = shortcuts.commandPalette;
+      const matches =
+        e.key === binding.key &&
+        !!binding.ctrl === e.ctrlKey &&
+        !!binding.shift === e.shiftKey &&
+        !!binding.alt === e.altKey;
+
+      if (matches) {
+        e.preventDefault();
+        setCommandPaletteOpen((open) => !open);
+        return;
+      }
+
+      // Also close palette on Escape when open
+      if (e.key === 'Escape' && commandPaletteOpen) {
+        setCommandPaletteOpen(false);
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [shortcuts, commandPaletteOpen]);
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH);
 
   // Create initial workspace on mount
@@ -74,11 +105,21 @@ export default function App() {
     [updateWorkspaceMetadata],
   );
 
+  const handlePaletteClose = useCallback(() => {
+    setCommandPaletteOpen(false);
+  }, []);
+
+  const handlePaletteAction = useCallback((action: string) => {
+    console.log(`[wmux] Command palette action: ${action}`);
+    setCommandPaletteOpen(false);
+  }, []);
+
   // Derive a title for the titlebar: active workspace title or blank
   const titlebarText = activeWorkspace?.title ?? '';
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+      {settingsOpen && <SettingsWindow onClose={() => setSettingsOpen(false)} />}
       <Titlebar title={titlebarText} />
 
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
@@ -108,6 +149,13 @@ export default function App() {
           ) : null}
         </div>
       </div>
+
+      {commandPaletteOpen && (
+        <CommandPalette
+          onClose={handlePaletteClose}
+          onAction={handlePaletteAction}
+        />
+      )}
     </div>
   );
 }

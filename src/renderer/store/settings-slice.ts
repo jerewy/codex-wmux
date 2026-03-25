@@ -94,15 +94,113 @@ export const DEFAULT_SHORTCUTS: Record<ShortcutAction, ShortcutBinding> = {
   openMarkdownPanel: { key: 'm', ctrl: true, shift: true },
 };
 
+// ─── Sidebar settings ─────────────────────────────────────────────────────────
+
+export interface SidebarPrefs {
+  showGitBranch: boolean;
+  showWorkingDir: boolean;
+  showPR: boolean;
+  showPorts: boolean;
+  showNotificationMessage: boolean;
+  hideAllDetails: boolean;
+  activeTabIndicator: 'leftRail' | 'solidFill';
+  backgroundOpacity: number; // 0–100
+}
+
+export const DEFAULT_SIDEBAR_PREFS: SidebarPrefs = {
+  showGitBranch: true,
+  showWorkingDir: true,
+  showPR: true,
+  showPorts: true,
+  showNotificationMessage: true,
+  hideAllDetails: false,
+  activeTabIndicator: 'leftRail',
+  backgroundOpacity: 100,
+};
+
+// ─── Workspace settings ───────────────────────────────────────────────────────
+
+export interface WorkspacePrefs {
+  newWorkspacePlacement: 'afterCurrent' | 'top' | 'end';
+  autoReorderOnNotification: boolean;
+  defaultShell: string;
+}
+
+export const DEFAULT_WORKSPACE_PREFS: WorkspacePrefs = {
+  newWorkspacePlacement: 'afterCurrent',
+  autoReorderOnNotification: false,
+  defaultShell: '',
+};
+
+// ─── Terminal settings ────────────────────────────────────────────────────────
+
+export interface TerminalPrefs {
+  fontFamily: string;
+  fontSize: number;
+  theme: string;
+  cursorStyle: 'block' | 'underline' | 'bar';
+  cursorBlink: boolean;
+  scrollbackLines: number;
+}
+
+export const DEFAULT_TERMINAL_PREFS: TerminalPrefs = {
+  fontFamily: 'Consolas, Menlo, Monaco, monospace',
+  fontSize: 13,
+  theme: 'Monokai',
+  cursorStyle: 'block',
+  cursorBlink: true,
+  scrollbackLines: 5000,
+};
+
+// ─── Notification settings ────────────────────────────────────────────────────
+
+export interface NotificationPrefs {
+  toast: boolean;
+  taskbarFlash: boolean;
+  paneRing: boolean;
+  paneFlashAnimation: boolean;
+  sound: 'default' | 'none';
+}
+
+export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
+  toast: true,
+  taskbarFlash: true,
+  paneRing: true,
+  paneFlashAnimation: true,
+  sound: 'default',
+};
+
+// ─── Browser settings ─────────────────────────────────────────────────────────
+
+export interface BrowserPrefs {
+  searchEngine: 'google' | 'duckduckgo' | 'bing' | 'brave';
+  devToolsIcon: 'default' | 'compact' | 'hidden';
+}
+
+export const DEFAULT_BROWSER_PREFS: BrowserPrefs = {
+  searchEngine: 'google',
+  devToolsIcon: 'default',
+};
+
 // ─── Slice interface ──────────────────────────────────────────────────────────
 
 export interface SettingsSlice {
   shortcuts: Record<ShortcutAction, ShortcutBinding>;
   sidebarVisible: boolean;
+  sidebarPrefs: SidebarPrefs;
+  workspacePrefs: WorkspacePrefs;
+  terminalPrefs: TerminalPrefs;
+  notificationPrefs: NotificationPrefs;
+  browserPrefs: BrowserPrefs;
 
   setShortcut(action: ShortcutAction, binding: ShortcutBinding): void;
   resetShortcuts(): void;
   toggleSidebar(): void;
+  setSidebarPrefs(prefs: Partial<SidebarPrefs>): void;
+  setWorkspacePrefs(prefs: Partial<WorkspacePrefs>): void;
+  setTerminalPrefs(prefs: Partial<TerminalPrefs>): void;
+  setNotificationPrefs(prefs: Partial<NotificationPrefs>): void;
+  setBrowserPrefs(prefs: Partial<BrowserPrefs>): void;
 }
 
 // ─── Slice creator ────────────────────────────────────────────────────────────
@@ -110,6 +208,11 @@ export interface SettingsSlice {
 export const createSettingsSlice: StateCreator<SettingsSlice> = (set) => ({
   shortcuts: { ...DEFAULT_SHORTCUTS },
   sidebarVisible: true,
+  sidebarPrefs: { ...DEFAULT_SIDEBAR_PREFS },
+  workspacePrefs: { ...DEFAULT_WORKSPACE_PREFS },
+  terminalPrefs: { ...DEFAULT_TERMINAL_PREFS },
+  notificationPrefs: { ...DEFAULT_NOTIFICATION_PREFS },
+  browserPrefs: { ...DEFAULT_BROWSER_PREFS },
 
   setShortcut(action: ShortcutAction, binding: ShortcutBinding): void {
     set((state) => ({
@@ -123,5 +226,25 @@ export const createSettingsSlice: StateCreator<SettingsSlice> = (set) => ({
 
   toggleSidebar(): void {
     set((state) => ({ sidebarVisible: !state.sidebarVisible }));
+  },
+
+  setSidebarPrefs(prefs: Partial<SidebarPrefs>): void {
+    set((state) => ({ sidebarPrefs: { ...state.sidebarPrefs, ...prefs } }));
+  },
+
+  setWorkspacePrefs(prefs: Partial<WorkspacePrefs>): void {
+    set((state) => ({ workspacePrefs: { ...state.workspacePrefs, ...prefs } }));
+  },
+
+  setTerminalPrefs(prefs: Partial<TerminalPrefs>): void {
+    set((state) => ({ terminalPrefs: { ...state.terminalPrefs, ...prefs } }));
+  },
+
+  setNotificationPrefs(prefs: Partial<NotificationPrefs>): void {
+    set((state) => ({ notificationPrefs: { ...state.notificationPrefs, ...prefs } }));
+  },
+
+  setBrowserPrefs(prefs: Partial<BrowserPrefs>): void {
+    set((state) => ({ browserPrefs: { ...state.browserPrefs, ...prefs } }));
   },
 });

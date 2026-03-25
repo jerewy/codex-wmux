@@ -38,7 +38,10 @@ function isSafeToIntercept(e: KeyboardEvent): boolean {
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
-export function useKeyboardShortcuts(focusedPaneId: PaneId | null): void {
+export function useKeyboardShortcuts(
+  focusedPaneId: PaneId | null,
+  onOpenSettings?: (open: boolean) => void,
+): void {
   const {
     shortcuts,
     workspaces,
@@ -165,6 +168,11 @@ export function useKeyboardShortcuts(focusedPaneId: PaneId | null): void {
         // Ctrl+1 through Ctrl+9 — handled separately via event listener below,
         // but here we just have them as no-ops in case they appear in shortcuts.
 
+        case 'openSettings': {
+          onOpenSettings?.(true);
+          break;
+        }
+
         // Unimplemented actions — log for now
         default:
           console.log(`[wmux] Shortcut triggered: ${action}`);
@@ -190,6 +198,7 @@ export function useKeyboardShortcuts(focusedPaneId: PaneId | null): void {
     nextSurface,
     prevSurface,
     closeSurface,
+    onOpenSettings,
   ]);
 
   // Ctrl+1 through Ctrl+9 — select workspace by index
