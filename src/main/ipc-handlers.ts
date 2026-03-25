@@ -6,9 +6,11 @@ import { detectShells } from './shell-detector';
 import { getDefaultTheme, loadBundledThemes } from './theme-loader';
 import { parseWindowsTerminalConfig, parseGhosttyConfig } from './config-loader';
 import { WindowManager } from './window-manager';
+import { CDPBridge } from './cdp-bridge';
 
 const ptyManager = new PtyManager();
 const notificationManager = new NotificationManager();
+const cdpBridge = new CDPBridge();
 
 export function registerIpcHandlers(windowManager: WindowManager): void {
   // Toggle DevTools for the renderer window
@@ -107,6 +109,13 @@ export function registerIpcHandlers(windowManager: WindowManager): void {
   ipcMain.handle(IPC_CHANNELS.WINDOW_IS_MAXIMIZED, (e) =>
     BrowserWindow.fromWebContents(e.sender)?.isMaximized() ?? false
   );
+
+  ipcMain.on(IPC_CHANNELS.CDP_ATTACH, (_event, webContentsId: number) => {
+    cdpBridge.attach(webContentsId);
+  });
+  ipcMain.on(IPC_CHANNELS.CDP_DETACH, () => {
+    cdpBridge.detach();
+  });
 }
 
-export { ptyManager };
+export { ptyManager, cdpBridge };

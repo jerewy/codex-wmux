@@ -1,5 +1,5 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
-import { registerIpcHandlers } from './ipc-handlers';
+import { registerIpcHandlers, cdpBridge } from './ipc-handlers';
 import { PipeServer } from './pipe-server';
 import { PortScanner } from './port-scanner';
 import { GitPoller } from './git-poller';
@@ -121,6 +121,72 @@ app.whenReady().then(() => {
         // Will be filled in when workspace IPC is complete
         respond({ workspaces: [] });
         break;
+      case 'browser.navigate':
+        if (!cdpBridge.isAttached) { respondError(-32000, 'Browser panel is not open'); break; }
+        cdpBridge.navigate(request.params.url, request.params.timeout)
+          .then(() => respond({ ok: true }))
+          .catch((err) => respondError(-32000, err.message));
+        break;
+      case 'browser.snapshot':
+        if (!cdpBridge.isAttached) { respondError(-32000, 'Browser panel is not open'); break; }
+        cdpBridge.snapshot().then((snap) => respond(snap)).catch((err) => respondError(-32000, err.message));
+        break;
+      case 'browser.click':
+        if (!cdpBridge.isAttached) { respondError(-32000, 'Browser panel is not open'); break; }
+        cdpBridge.click(request.params.ref).then(() => respond({ ok: true })).catch((err) => respondError(-32000, err.message));
+        break;
+      case 'browser.type':
+        if (!cdpBridge.isAttached) { respondError(-32000, 'Browser panel is not open'); break; }
+        cdpBridge.type(request.params.ref, request.params.text).then(() => respond({ ok: true })).catch((err) => respondError(-32000, err.message));
+        break;
+      case 'browser.fill':
+        if (!cdpBridge.isAttached) { respondError(-32000, 'Browser panel is not open'); break; }
+        cdpBridge.fill(request.params.ref, request.params.value).then(() => respond({ ok: true })).catch((err) => respondError(-32000, err.message));
+        break;
+      case 'browser.screenshot':
+        if (!cdpBridge.isAttached) { respondError(-32000, 'Browser panel is not open'); break; }
+        cdpBridge.screenshot(request.params.fullPage).then((data) => respond({ data })).catch((err) => respondError(-32000, err.message));
+        break;
+      case 'browser.get_text':
+        if (!cdpBridge.isAttached) { respondError(-32000, 'Browser panel is not open'); break; }
+        cdpBridge.getText(request.params.ref).then((text) => respond({ text })).catch((err) => respondError(-32000, err.message));
+        break;
+      case 'browser.eval':
+        if (!cdpBridge.isAttached) { respondError(-32000, 'Browser panel is not open'); break; }
+        cdpBridge.evaluate(request.params.js).then((result) => respond({ result })).catch((err) => respondError(-32000, err.message));
+        break;
+      case 'browser.wait':
+        if (!cdpBridge.isAttached) { respondError(-32000, 'Browser panel is not open'); break; }
+        cdpBridge.wait(request.params.ref, request.params.timeout).then(() => respond({ ok: true })).catch((err) => respondError(-32000, err.message));
+        break;
+      case 'browser.batch': {
+        if (!cdpBridge.isAttached) { respondError(-32000, 'Browser panel is not open'); break; }
+        const results: any[] = [];
+        (async () => {
+          for (const cmd of request.params.commands || []) {
+            try {
+              const handler: any = {
+                'browser.navigate': () => cdpBridge.navigate(cmd.params?.url, cmd.params?.timeout).then(() => ({ ok: true })),
+                'browser.snapshot': () => cdpBridge.snapshot(),
+                'browser.click': () => cdpBridge.click(cmd.params?.ref).then(() => ({ ok: true })),
+                'browser.type': () => cdpBridge.type(cmd.params?.ref, cmd.params?.text).then(() => ({ ok: true })),
+                'browser.fill': () => cdpBridge.fill(cmd.params?.ref, cmd.params?.value).then(() => ({ ok: true })),
+                'browser.screenshot': () => cdpBridge.screenshot(cmd.params?.fullPage).then((d: string) => ({ data: d })),
+                'browser.get_text': () => cdpBridge.getText(cmd.params?.ref).then((t: string) => ({ text: t })),
+                'browser.eval': () => cdpBridge.evaluate(cmd.params?.js).then((r: any) => ({ result: r })),
+                'browser.wait': () => cdpBridge.wait(cmd.params?.ref, cmd.params?.timeout).then(() => ({ ok: true })),
+              }[cmd.method];
+              if (!handler) { results.push({ error: { code: -32601, message: `Unknown: ${cmd.method}` } }); break; }
+              results.push({ result: await handler() });
+            } catch (err: any) {
+              results.push({ error: { code: -32000, message: err.message } });
+              break;
+            }
+          }
+          respond({ results });
+        })();
+        break;
+      }
       default:
         respondError(-32601, `Method not found: ${request.method}`);
     }

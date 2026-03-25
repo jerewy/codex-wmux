@@ -63,6 +63,22 @@ export default function BrowserPane({ initialUrl = 'https://github.com/amirlehma
     };
   }, []);
 
+  useEffect(() => {
+    const wv = webviewRef.current;
+    if (!wv) return;
+    const onAttach = () => {
+      const wcId = wv.getWebContentsId?.();
+      if (wcId && window.wmux?.cdp?.attach) {
+        window.wmux.cdp.attach(wcId);
+      }
+    };
+    wv.addEventListener('dom-ready', onAttach);
+    return () => {
+      wv.removeEventListener('dom-ready', onAttach);
+      window.wmux?.cdp?.detach?.();
+    };
+  }, []);
+
   return (
     <div className="browser-pane">
       <AddressBar

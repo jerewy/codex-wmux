@@ -57,6 +57,10 @@ contextBridge.exposeInMainWorld('wmux', {
   browser: {
     navigate: (surfaceId: string, url: string) => ipcRenderer.send('browser:navigate', surfaceId, url),
   },
+  cdp: {
+    attach: (webContentsId: number) => ipcRenderer.send(IPC_CHANNELS.CDP_ATTACH, webContentsId),
+    detach: () => ipcRenderer.send(IPC_CHANNELS.CDP_DETACH),
+  },
   window: {
     create: () => ipcRenderer.invoke(IPC_CHANNELS.WINDOW_CREATE),
     close: (id: string) => ipcRenderer.send(IPC_CHANNELS.WINDOW_CLOSE, id),
