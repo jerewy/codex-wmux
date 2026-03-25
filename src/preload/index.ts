@@ -37,4 +37,20 @@ contextBridge.exposeInMainWorld('wmux', {
     importWindowsTerminal: () => ipcRenderer.invoke(IPC_CHANNELS.CONFIG_IMPORT_WT),
     importGhostty: () => ipcRenderer.invoke(IPC_CHANNELS.CONFIG_IMPORT_GHOSTTY),
   },
+  metadata: {
+    onUpdate: (callback: (command: any) => void) => {
+      const handler = (_event: any, cmd: any) => callback(cmd);
+      ipcRenderer.on(IPC_CHANNELS.METADATA_UPDATE, handler);
+      return () => ipcRenderer.removeListener(IPC_CHANNELS.METADATA_UPDATE, handler);
+    },
+  },
+  notification: {
+    fire: (data: { surfaceId: string; text: string; title?: string }) =>
+      ipcRenderer.send(IPC_CHANNELS.NOTIFICATION_FIRE, data),
+    onFocusSurface: (callback: (surfaceId: string) => void) => {
+      const handler = (_event: any, surfaceId: string) => callback(surfaceId);
+      ipcRenderer.on('notification:focus-surface', handler);
+      return () => ipcRenderer.removeListener('notification:focus-surface', handler);
+    },
+  },
 });
