@@ -49,27 +49,28 @@
   },
   "dependencies": {
     "electron-updater": "^6.3.0",
+    "marked": "^15.0.0",
     "node-pty": "^1.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
     "uuid": "^11.0.0",
-    "zustand": "^5.0.0"
-  },
-  "devDependencies": {
-    "@anthropic-ai/sdk": "^0.39.0",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
-    "@types/uuid": "^10.0.0",
+    "zustand": "^5.0.0",
     "@xterm/addon-fit": "^0.10.0",
+    "@xterm/addon-image": "^0.8.0",
     "@xterm/addon-search": "^0.15.0",
     "@xterm/addon-web-links": "^0.11.0",
     "@xterm/addon-webgl": "^0.18.0",
     "@xterm/addon-unicode11": "^0.8.0",
-    "@xterm/xterm": "^5.5.0",
+    "@xterm/xterm": "^5.5.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/uuid": "^10.0.0",
     "concurrently": "^9.0.0",
     "electron": "^33.0.0",
     "electron-builder": "^25.0.0",
     "eslint": "^9.0.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
     "typescript": "^5.5.0",
     "vite": "^6.0.0",
     "vitest": "^2.0.0",
@@ -528,6 +529,19 @@ git commit -m "feat: initialize Electron + React + Vite project scaffold"
 
 ---
 
+> **IMPORTANT — Progressive Preload Wiring:** Task 4 only wires `pty` and `system` IPC into the preload. Each subsequent feature task that adds new IPC handlers MUST also add the corresponding methods to `src/preload/index.ts`. Specifically:
+> - Task 8 (Sidebar) → add `workspace.*` methods to preload
+> - Task 13 (Notifications) → add `notification.*` methods to preload
+> - Task 14 (Pipe Server) → no preload change needed (main-only)
+> - Task 18 (Surfaces) → add `surface.*` methods to preload
+> - Task 19 (Browser) → add `browser.*` methods to preload
+> - Task 20 (Markdown) → add `markdown.*` methods to preload
+> - Task 21 (Session) → no preload change (main-only)
+> - Task 22 (Settings) → add `settings.*` methods to preload
+> - Task 25 (Multi-Window) → add `window.*` methods to preload
+>
+> Each task's "Wire into..." step should include updating `src/preload/index.ts` with the new IPC namespace.
+
 ## Phase 2: Terminal Emulation Core
 
 ### Task 2: Shell detector — auto-detect available shells
@@ -845,7 +859,12 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.PTY_CREATE, async (_event, options: {
     shell: string; cwd: string; env: Record<string, string>;
   }) => {
-    const id = await ptyManager.create(options);
+    // Resolve CWD on main process (renderer has no access to process.env)
+    const resolvedOptions = {
+      ...options,
+      cwd: options.cwd || process.env.USERPROFILE || 'C:\\',
+    };
+    const id = await ptyManager.create(resolvedOptions);
     const window = BrowserWindow.fromWebContents(_event.sender);
     ptyManager.onData(id, (data) => {
       if (window && !window.isDestroyed()) {
@@ -955,6 +974,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { SearchAddon } from '@xterm/addon-search';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
+import { ImageAddon } from '@xterm/addon-image';
 import '@xterm/xterm/css/xterm.css';
 
 declare global {
@@ -1017,7 +1037,22 @@ export function useTerminal(options: UseTerminalOptions = {}) {
     terminal.loadAddon(new WebLinksAddon());
     terminal.loadAddon(searchAddon);
     terminal.loadAddon(unicode11Addon);
+    terminal.loadAddon(new ImageAddon());
     terminal.unicode.activeVersion = '11';
+
+    // Ctrl+C: copy if selection exists, else send \x03 to PTY
+    terminal.attachCustomKeyEventHandler((event) => {
+      if (event.type === 'keydown' && event.ctrlKey && event.key === 'c') {
+        if (terminal.hasSelection()) {
+          navigator.clipboard.writeText(terminal.getSelection());
+          terminal.clearSelection();
+          return false; // prevent sending to PTY
+        }
+        // No selection — let xterm send \x03 (CTRL_C_EVENT via ConPTY)
+        return true;
+      }
+      return true;
+    });
 
     terminal.open(terminalRef.current);
 
@@ -1035,7 +1070,8 @@ export function useTerminal(options: UseTerminalOptions = {}) {
 
     // Spawn PTY
     const shell = options.shell ?? 'pwsh.exe';
-    const cwd = options.cwd ?? process.env.USERPROFILE ?? 'C:\\';
+    // CWD is resolved on the main process side (PTY create handler defaults to USERPROFILE)
+    const cwd = options.cwd ?? '';
 
     window.wmux.pty.create({ shell, cwd, env: { WMUX: '1' } }).then((id: string) => {
       ptyIdRef.current = id;
