@@ -2,7 +2,7 @@
 <p align="center">A Windows terminal with vertical tabs and notifications for AI coding agents</p>
 
 <p align="center">
-  Built on Electron + xterm.js. Inspired by <a href="https://github.com/manaflow-ai/cmux">cmux</a>. 
+  Built on Electron + xterm.js. Forked from <a href="https://github.com/manaflow-ai/cmux">cmux</a>. 
 </p>
 
 <p align="center">
