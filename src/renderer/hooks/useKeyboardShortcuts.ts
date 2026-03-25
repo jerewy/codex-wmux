@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useStore } from '../store';
 import { ShortcutBinding, ShortcutAction } from '../store/settings-slice';
-import { splitNode, removeLeaf, getAllPaneIds } from '../store/split-utils';
+import { splitNode, removeLeaf, getAllPaneIds, findLeaf } from '../store/split-utils';
 import { PaneId } from '../../shared/types';
 import { v4 as uuid } from 'uuid';
 
@@ -48,6 +48,10 @@ export function useKeyboardShortcuts(focusedPaneId: PaneId | null): void {
     selectWorkspace,
     updateSplitTree,
     toggleSidebar,
+    addSurface,
+    nextSurface,
+    prevSurface,
+    closeSurface,
   } = useStore();
 
   useEffect(() => {
@@ -123,11 +127,38 @@ export function useKeyboardShortcuts(focusedPaneId: PaneId | null): void {
           if (!activeWorkspaceId || !focusedPaneId) break;
           const ws = useStore.getState().workspaces.find((w) => w.id === activeWorkspaceId);
           if (!ws) break;
+          const leaf = findLeaf(ws.splitTree, focusedPaneId);
+          if (leaf && leaf.surfaces.length > 0) {
+            // Close the active surface; if it's the last, closeSurface removes the pane
+            const activeSurface = leaf.surfaces[leaf.activeSurfaceIndex];
+            if (activeSurface) {
+              closeSurface(activeWorkspaceId, focusedPaneId, activeSurface.id);
+              break;
+            }
+          }
+          // Fallback: no surfaces found, remove the pane directly (guard: keep last pane)
           const paneIds = getAllPaneIds(ws.splitTree);
-          // Don't close the last pane — that would close the workspace
           if (paneIds.length <= 1) break;
           const newTree = removeLeaf(ws.splitTree, focusedPaneId);
           if (newTree) updateSplitTree(activeWorkspaceId, newTree);
+          break;
+        }
+
+        case 'newSurface': {
+          if (!activeWorkspaceId || !focusedPaneId) break;
+          addSurface(activeWorkspaceId, focusedPaneId, 'terminal');
+          break;
+        }
+
+        case 'nextSurface': {
+          if (!activeWorkspaceId || !focusedPaneId) break;
+          nextSurface(activeWorkspaceId, focusedPaneId);
+          break;
+        }
+
+        case 'prevSurface': {
+          if (!activeWorkspaceId || !focusedPaneId) break;
+          prevSurface(activeWorkspaceId, focusedPaneId);
           break;
         }
 
@@ -155,6 +186,10 @@ export function useKeyboardShortcuts(focusedPaneId: PaneId | null): void {
     selectWorkspace,
     updateSplitTree,
     toggleSidebar,
+    addSurface,
+    nextSurface,
+    prevSurface,
+    closeSurface,
   ]);
 
   // Ctrl+1 through Ctrl+9 — select workspace by index

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { PaneId, SplitNode, SurfaceId } from '../../../shared/types';
 import TerminalPane from '../Terminal/TerminalPane';
 import NotificationRing from '../Terminal/NotificationRing';
+import SurfaceTabBar from './SurfaceTabBar';
 import { useStore } from '../../store';
 import '../../styles/splitpane.css';
 import '../../styles/terminal.css';
@@ -13,12 +14,17 @@ interface PaneWrapperProps {
 }
 
 export default function PaneWrapper({ leaf, isFocused }: PaneWrapperProps) {
-  const activeSurface = leaf.surfaces[leaf.activeSurfaceIndex];
+  const { surfaces, activeSurfaceIndex, paneId } = leaf;
+  const activeSurface = surfaces[activeSurfaceIndex];
 
   const notifications = useStore((s) => s.notifications);
   const markRead = useStore((s) => s.markRead);
+  const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
+  const addSurface = useStore((s) => s.addSurface);
+  const closeSurface = useStore((s) => s.closeSurface);
+  const selectSurface = useStore((s) => s.selectSurface);
 
-  const surfaceIds = leaf.surfaces.map((s) => s.id);
+  const surfaceIds = surfaces.map((s) => s.id);
 
   const hasUnread = notifications.some(
     (n) => !n.read && surfaceIds.includes(n.surfaceId as SurfaceId),
@@ -60,20 +66,78 @@ export default function PaneWrapper({ leaf, isFocused }: PaneWrapperProps) {
     switch (activeSurface.type) {
       case 'terminal':
         return <TerminalPane focused={isFocused} />;
-      // browser and markdown surfaces are handled in later tasks
+      case 'browser':
+        return (
+          <div
+            style={{
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#888',
+              fontSize: '14px',
+            }}
+          >
+            Browser panel coming soon
+          </div>
+        );
+      case 'markdown':
+        return (
+          <div
+            style={{
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#888',
+              fontSize: '14px',
+            }}
+          >
+            Markdown panel coming soon
+          </div>
+        );
       default:
         return null;
     }
   };
 
+  const handleNewSurface = () => {
+    if (activeWorkspaceId) {
+      addSurface(activeWorkspaceId, paneId, 'terminal');
+    }
+  };
+
+  const handleSelectSurface = (index: number) => {
+    if (activeWorkspaceId) {
+      selectSurface(activeWorkspaceId, paneId, index);
+    }
+  };
+
+  const handleCloseSurface = (surfaceId: SurfaceId) => {
+    if (activeWorkspaceId) {
+      closeSurface(activeWorkspaceId, paneId, surfaceId);
+    }
+  };
+
   return (
     <div className="pane-wrapper">
-      {renderSurface()}
-      <NotificationRing visible={hasUnread} flashing={justFired} />
-      <div
-        className="pane-wrapper__unfocused-overlay"
-        style={{ opacity: isFocused ? 0 : 1 }}
+      <SurfaceTabBar
+        surfaces={surfaces}
+        activeSurfaceIndex={activeSurfaceIndex}
+        onSelect={handleSelectSurface}
+        onClose={handleCloseSurface}
+        onNew={handleNewSurface}
       />
+      <div className="pane-wrapper__content">
+        {renderSurface()}
+        <NotificationRing visible={hasUnread} flashing={justFired} />
+        <div
+          className="pane-wrapper__unfocused-overlay"
+          style={{ opacity: isFocused ? 0 : 1 }}
+        />
+      </div>
     </div>
   );
 }

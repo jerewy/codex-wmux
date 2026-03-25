@@ -13,8 +13,93 @@
 .split-divider__line { position: absolute; background: rgba(255,255,255,0.06); }
 .split-divider--horizontal .split-divider__line { width: 1px; height: 100%; left: 50%; transform: translateX(-50%); }
 .split-divider--vertical .split-divider__line { height: 1px; width: 100%; top: 50%; transform: translateY(-50%); }
-.pane-wrapper { position: relative; width: 100%; height: 100%; }
+.pane-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.pane-wrapper__content {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
 .pane-wrapper__unfocused-overlay {
   position: absolute; inset: 0; background: rgba(0,0,0,0.3);
   pointer-events: none; z-index: 5; transition: opacity 0.15s ease;
 }
+
+/* ─── Surface tab bar ──────────────────────────────────────────────────────── */
+.surface-tab-bar {
+  display: flex;
+  align-items: center;
+  height: 28px;
+  min-height: 28px;
+  background: #1e1e1e;
+  overflow: hidden;
+  flex-shrink: 0;
+  z-index: 6;
+}
+.surface-tab-bar__tabs {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+.surface-tab-bar__tabs::-webkit-scrollbar { display: none; }
+.surface-tab {
+  display: flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 8px;
+  gap: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  background: #2a2a2a;
+  color: #888;
+  font-size: 12px;
+  border-right: 1px solid #111;
+  user-select: none;
+  transition: background 0.1s ease, color 0.1s ease;
+}
+.surface-tab:hover { background: #333; color: #bbb; }
+.surface-tab--active { background: #3a3a3a; color: #fff; }
+.surface-tab__label { pointer-events: none; }
+.surface-tab__close {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.surface-tab:hover .surface-tab__close,
+.surface-tab--active .surface-tab__close { display: flex; }
+.surface-tab__close:hover { background: rgba(255,255,255,0.15); color: #fff; }
+.surface-tab-bar__new-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: #888;
+  font-size: 18px;
+  cursor: pointer;
+  transition: color 0.1s ease, background 0.1s ease;
+}
+.surface-tab-bar__new-btn:hover { color: #fff; background: rgba(255,255,255,0.08); }
