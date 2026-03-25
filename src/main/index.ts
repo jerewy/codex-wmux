@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'path';
 import { registerIpcHandlers } from './ipc-handlers';
 import { PipeServer } from './pipe-server';
@@ -6,6 +6,7 @@ import { PortScanner } from './port-scanner';
 import { GitPoller } from './git-poller';
 import { PrPoller } from './pr-poller';
 import { IPC_CHANNELS } from '../shared/types';
+import { loadSession, saveSession, SessionData } from './session-persistence';
 
 let mainWindow: BrowserWindow | null = null;
 const pipeServer = new PipeServer();
@@ -13,10 +14,32 @@ const portScanner = new PortScanner();
 const gitPoller = new GitPoller();
 const prPoller = new PrPoller();
 
+// Auto-save debounce handle
+let autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
+const AUTO_SAVE_INTERVAL_MS = 30_000;
+
+function scheduleAutoSave(): void {
+  if (autoSaveTimer !== null) {
+    clearTimeout(autoSaveTimer);
+  }
+  autoSaveTimer = setTimeout(() => {
+    autoSaveTimer = null;
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('session:request');
+    }
+  }, AUTO_SAVE_INTERVAL_MS);
+}
+
 function createWindow(): void {
+  // Attempt to restore last saved window bounds
+  const savedSession = loadSession();
+  const savedBounds = savedSession?.windows?.[0]?.bounds;
+
   mainWindow = new BrowserWindow({
-    width: 1400,
-    height: 900,
+    width: savedBounds?.width ?? 1400,
+    height: savedBounds?.height ?? 900,
+    x: savedBounds?.x,
+    y: savedBounds?.y,
     minWidth: 800,
     minHeight: 500,
     titleBarStyle: 'hidden',
@@ -31,6 +54,7 @@ function createWindow(): void {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false, // needed for node-pty IPC
+      webviewTag: true, // needed for browser panel
     },
   });
 
@@ -47,8 +71,17 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  // IPC: renderer pushes session state (auto-save response or explicit save)
+  ipcMain.on('session:save', (_event, data: SessionData) => {
+    saveSession(data);
+    scheduleAutoSave();
+  });
+
   registerIpcHandlers();
   createWindow();
+
+  // Kick off the first auto-save cycle after the window is ready
+  scheduleAutoSave();
 
   // Start named pipe server
   pipeServer.start();

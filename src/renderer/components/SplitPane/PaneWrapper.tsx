@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { PaneId, SplitNode, SurfaceId } from '../../../shared/types';
 import TerminalPane from '../Terminal/TerminalPane';
+import BrowserPane from '../Browser/BrowserPane';
+import MarkdownPane from '../Markdown/MarkdownPane';
 import NotificationRing from '../Terminal/NotificationRing';
 import SurfaceTabBar from './SurfaceTabBar';
 import { useStore } from '../../store';
@@ -67,37 +69,9 @@ export default function PaneWrapper({ leaf, isFocused }: PaneWrapperProps) {
       case 'terminal':
         return <TerminalPane focused={isFocused} />;
       case 'browser':
-        return (
-          <div
-            style={{
-              width: '100%',
-              height: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#888',
-              fontSize: '14px',
-            }}
-          >
-            Browser panel coming soon
-          </div>
-        );
+        return <BrowserPane surfaceId={activeSurface.id} />;
       case 'markdown':
-        return (
-          <div
-            style={{
-              width: '100%',
-              height: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#888',
-              fontSize: '14px',
-            }}
-          >
-            Markdown panel coming soon
-          </div>
-        );
+        return <MarkdownPane surfaceId={activeSurface.id} />;
       default:
         return null;
     }

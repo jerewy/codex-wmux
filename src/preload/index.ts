@@ -53,4 +53,7 @@ contextBridge.exposeInMainWorld('wmux', {
       return () => ipcRenderer.removeListener('notification:focus-surface', handler);
     },
   },
+  browser: {
+    navigate: (surfaceId: string, url: string) => ipcRenderer.send('browser:navigate', surfaceId, url),
+  },
 });
