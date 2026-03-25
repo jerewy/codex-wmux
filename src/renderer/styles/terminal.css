@@ -12,7 +12,11 @@
 
 .terminal-pane__container .xterm {
   height: 100%;
-  padding: 4px;
+  padding: 2px;
+}
+
+.terminal-pane__container .xterm-viewport {
+  overflow-y: auto !important;
 }
 
 .find-bar {

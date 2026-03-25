@@ -182,25 +182,26 @@ export default function Sidebar({
 
   return (
     <div className="sidebar" style={{ width: sidebarWidth }}>
-      <div className="sidebar__scroll">
-        <div className="sidebar__workspace-list">
-          {workspaces.map((ws) => (
-            <WorkspaceRow
-              key={ws.id}
-              workspace={ws}
-              isActive={ws.id === activeWorkspaceId}
-              onSelect={() => onSelect(ws.id)}
-              onClose={() => onClose(ws.id)}
-              onContextMenu={(e) => handleContextMenu(e, ws.id)}
-              draggable
-              onDragStart={(e) => handleDragStart(e, ws.id)}
-              onDragOver={(e) => handleDragOver(e, ws.id)}
-              onDrop={(e) => handleDrop(e, ws.id)}
-              onDragEnd={handleDragEnd}
-              isDragOver={dragOverId === ws.id}
-            />
-          ))}
-        </div>
+      {/* Spacer for titlebar area */}
+      <div className="sidebar__header" />
+
+      <div className="sidebar__list">
+        {workspaces.map((ws) => (
+          <WorkspaceRow
+            key={ws.id}
+            workspace={ws}
+            isActive={ws.id === activeWorkspaceId}
+            onSelect={() => onSelect(ws.id)}
+            onClose={() => onClose(ws.id)}
+            onContextMenu={(e) => handleContextMenu(e, ws.id)}
+            draggable
+            onDragStart={(e) => handleDragStart(e, ws.id)}
+            onDragOver={(e) => handleDragOver(e, ws.id)}
+            onDrop={(e) => handleDrop(e, ws.id)}
+            onDragEnd={handleDragEnd}
+            isDragOver={dragOverId === ws.id}
+          />
+        ))}
       </div>
 
       <div className="sidebar__footer">
