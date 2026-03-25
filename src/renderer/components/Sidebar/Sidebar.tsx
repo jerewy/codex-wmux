@@ -193,6 +193,7 @@ export default function Sidebar({
             isActive={ws.id === activeWorkspaceId}
             onSelect={() => onSelect(ws.id)}
             onClose={() => onClose(ws.id)}
+            onRename={(newTitle) => onRename(ws.id, newTitle)}
             onContextMenu={(e) => handleContextMenu(e, ws.id)}
             draggable
             onDragStart={(e) => handleDragStart(e, ws.id)}

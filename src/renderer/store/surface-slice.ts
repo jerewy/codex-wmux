@@ -25,6 +25,9 @@ export interface SurfaceSlice {
 
   /** Select a surface by 0-based index */
   selectSurface: (workspaceId: WorkspaceId, paneId: PaneId, index: number) => void;
+
+  /** Move a surface from one pane to another (drag-and-drop) */
+  moveSurface: (workspaceId: WorkspaceId, sourcePaneId: PaneId, surfaceId: SurfaceId, targetPaneId: PaneId) => void;
 }
 
 // ─── Helper: update a leaf's surfaces in the split tree ──────────────────────
@@ -113,6 +116,47 @@ export const createSurfaceSlice: StateCreator<SliceState, [], [], SurfaceSlice> 
     const newIndex = (leaf.activeSurfaceIndex - 1 + leaf.surfaces.length) % leaf.surfaces.length;
     const updatedTree = patchLeaf(ws.splitTree, paneId, { activeSurfaceIndex: newIndex });
     updateSplitTree(workspaceId, updatedTree);
+  },
+
+  moveSurface(workspaceId, sourcePaneId, surfaceId, targetPaneId) {
+    const { workspaces, updateSplitTree } = get();
+    const ws = workspaces.find((w) => w.id === workspaceId);
+    if (!ws) return;
+
+    const sourceLeaf = findLeaf(ws.splitTree, sourcePaneId);
+    const targetLeaf = findLeaf(ws.splitTree, targetPaneId);
+    if (!sourceLeaf || !targetLeaf) return;
+
+    // Find the surface in the source
+    const surfaceIndex = sourceLeaf.surfaces.findIndex((s) => s.id === surfaceId);
+    if (surfaceIndex === -1) return;
+    const surface = sourceLeaf.surfaces[surfaceIndex];
+
+    // Remove from source
+    const newSourceSurfaces = sourceLeaf.surfaces.filter((s) => s.id !== surfaceId);
+    let tree = ws.splitTree;
+
+    if (newSourceSurfaces.length === 0) {
+      // Source pane is now empty — remove it
+      tree = removeLeaf(tree, sourcePaneId) ?? tree;
+    } else {
+      tree = patchLeaf(tree, sourcePaneId, {
+        surfaces: newSourceSurfaces,
+        activeSurfaceIndex: Math.min(sourceLeaf.activeSurfaceIndex, newSourceSurfaces.length - 1),
+      });
+    }
+
+    // Add to target
+    const updatedTargetLeaf = findLeaf(tree, targetPaneId);
+    if (updatedTargetLeaf) {
+      const newTargetSurfaces = [...updatedTargetLeaf.surfaces, surface];
+      tree = patchLeaf(tree, targetPaneId, {
+        surfaces: newTargetSurfaces,
+        activeSurfaceIndex: newTargetSurfaces.length - 1,
+      });
+    }
+
+    updateSplitTree(workspaceId, tree);
   },
 
   selectSurface(workspaceId, paneId, index) {

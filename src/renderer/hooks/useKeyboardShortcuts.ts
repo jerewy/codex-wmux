@@ -41,6 +41,7 @@ function isSafeToIntercept(e: KeyboardEvent): boolean {
 export function useKeyboardShortcuts(
   focusedPaneId: PaneId | null,
   onOpenSettings?: (open: boolean) => void,
+  onToggleBrowser?: () => void,
 ): void {
   const {
     shortcuts,
@@ -170,6 +171,11 @@ export function useKeyboardShortcuts(
 
         case 'openSettings': {
           onOpenSettings?.(true);
+          break;
+        }
+
+        case 'openBrowser': {
+          onToggleBrowser?.();
           break;
         }
 

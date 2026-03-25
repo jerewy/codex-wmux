@@ -7,7 +7,7 @@ interface BrowserPaneProps {
   surfaceId: string;
 }
 
-export default function BrowserPane({ initialUrl = 'https://google.com', surfaceId: _surfaceId }: BrowserPaneProps) {
+export default function BrowserPane({ initialUrl = 'https://github.com/manaflow-ai/cmux', surfaceId: _surfaceId }: BrowserPaneProps) {
   const [url, setUrl] = useState(initialUrl);
   const [currentUrl, setCurrentUrl] = useState(initialUrl);
   const [isLoading, setIsLoading] = useState(false);

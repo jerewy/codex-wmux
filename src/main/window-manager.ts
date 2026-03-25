@@ -37,8 +37,12 @@ export class WindowManager {
       },
     });
 
-    if (process.env.NODE_ENV === 'development') {
-      win.loadURL('http://localhost:5173');
+    // In dev mode, load from Vite dev server; in production, load built files
+    const isDev = !require('electron').app.isPackaged;
+    if (isDev) {
+      const devPort = process.env.VITE_DEV_PORT || '5199';
+      win.loadURL(`http://localhost:${devPort}`);
+      win.webContents.openDevTools({ mode: 'detach' });
     } else {
       win.loadFile(path.join(__dirname, '../renderer/index.html'));
     }

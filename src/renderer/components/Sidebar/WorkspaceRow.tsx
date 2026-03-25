@@ -8,6 +8,7 @@ interface WorkspaceRowProps {
   isActive: boolean;
   onSelect: () => void;
   onClose: () => void;
+  onRename?: (newTitle: string) => void;
   onContextMenu?: (e: React.MouseEvent) => void;
   // Drag-and-drop
   draggable?: boolean;
@@ -23,6 +24,7 @@ export default function WorkspaceRow({
   isActive,
   onSelect,
   onClose,
+  onRename,
   onContextMenu,
   draggable = false,
   onDragStart,
@@ -32,7 +34,10 @@ export default function WorkspaceRow({
   isDragOver = false,
 }: WorkspaceRowProps) {
   const [isHovered, setIsHovered] = useState(false);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState(workspace.title);
   const rowRef = useRef<HTMLDivElement>(null);
+  const renameInputRef = useRef<HTMLInputElement>(null);
 
   // Support custom color: override the active background if set
   const activeBackground = workspace.customColor ?? '#0091FF';
@@ -74,9 +79,46 @@ export default function WorkspaceRow({
 
       {/* Title row */}
       <div className="workspace-row__header">
-        <span className="workspace-row__title">
-          {workspace.title}
-        </span>
+        {isRenaming ? (
+          <input
+            ref={renameInputRef}
+            className="workspace-row__rename-input"
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            onBlur={() => {
+              if (renameValue.trim() && renameValue !== workspace.title) {
+                onRename?.(renameValue.trim());
+              }
+              setIsRenaming(false);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                if (renameValue.trim() && renameValue !== workspace.title) {
+                  onRename?.(renameValue.trim());
+                }
+                setIsRenaming(false);
+              }
+              if (e.key === 'Escape') {
+                setRenameValue(workspace.title);
+                setIsRenaming(false);
+              }
+              e.stopPropagation();
+            }}
+            onClick={(e) => e.stopPropagation()}
+            autoFocus
+          />
+        ) : (
+          <span
+            className="workspace-row__title"
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              setRenameValue(workspace.title);
+              setIsRenaming(true);
+            }}
+          >
+            {workspace.title}
+          </span>
+        )}
 
         {workspace.unreadCount > 0 && (
           <UnreadBadge count={workspace.unreadCount} isSelected={isActive} />

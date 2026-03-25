@@ -61,6 +61,7 @@ export function useTerminal({ shell, cwd }: UseTerminalOptions = {}): UseTermina
       cursorBlink: true,
       cursorStyle: 'block',
       allowTransparency: false,
+      allowProposedApi: true,
       scrollback: 10000,
     });
 

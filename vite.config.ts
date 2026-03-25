@@ -17,6 +17,13 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5173,
+    port: 5199,
+    strictPort: false,
+    fs: {
+      allow: [
+        // Allow serving files from the entire project root (needed for src/shared/)
+        path.resolve(__dirname),
+      ],
+    },
   },
 });

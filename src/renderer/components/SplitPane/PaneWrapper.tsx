@@ -25,6 +25,7 @@ export default function PaneWrapper({ leaf, isFocused }: PaneWrapperProps) {
   const addSurface = useStore((s) => s.addSurface);
   const closeSurface = useStore((s) => s.closeSurface);
   const selectSurface = useStore((s) => s.selectSurface);
+  const moveSurface = useStore((s) => s.moveSurface);
   const shortcuts = useStore((s) => s.shortcuts);
 
   const surfaceIds = surfaces.map((s) => s.id);
@@ -152,6 +153,12 @@ export default function PaneWrapper({ leaf, isFocused }: PaneWrapperProps) {
     }
   };
 
+  const handleDropSurface = (sourcePaneId: PaneId, surfaceId: SurfaceId, targetPaneId: PaneId) => {
+    if (activeWorkspaceId) {
+      moveSurface(activeWorkspaceId, sourcePaneId, surfaceId, targetPaneId);
+    }
+  };
+
   const handleCloseSurface = (surfaceId: SurfaceId) => {
     if (activeWorkspaceId) {
       closeSurface(activeWorkspaceId, paneId, surfaceId);
@@ -161,11 +168,13 @@ export default function PaneWrapper({ leaf, isFocused }: PaneWrapperProps) {
   return (
     <div className="pane-wrapper">
       <SurfaceTabBar
+        paneId={paneId}
         surfaces={surfaces}
         activeSurfaceIndex={activeSurfaceIndex}
         onSelect={handleSelectSurface}
         onClose={handleCloseSurface}
         onNew={handleNewSurface}
+        onDropSurface={handleDropSurface}
       />
       <div className="pane-wrapper__content">
         {renderSurface()}
