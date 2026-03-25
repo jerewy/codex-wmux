@@ -435,3 +435,26 @@
   border-color: rgba(255, 255, 255, 0.6);
   transform: scale(1.1);
 }
+
+.workspace-row__state-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  flex-shrink: 0;
+  margin-right: 4px;
+}
+
+.workspace-row__state-dot--running {
+  background: #4caf50;
+  animation: pulse-dot 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.workspace-row__agents {
+  color: rgba(0, 145, 255, 0.6);
+}

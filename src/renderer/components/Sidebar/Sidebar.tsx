@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { WorkspaceInfo, WorkspaceId } from '../../../shared/types';
 import WorkspaceRow from './WorkspaceRow';
 import SidebarResizeHandle from './SidebarResizeHandle';
@@ -39,6 +39,24 @@ export default function Sidebar({
   const [draggedId, setDraggedId] = useState<WorkspaceId | null>(null);
   const [dragOverId, setDragOverId] = useState<WorkspaceId | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [agentCounts, setAgentCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      if (!window.wmux?.agent?.list) return;
+      try {
+        const agents = await window.wmux.agent.list();
+        const counts: Record<string, number> = {};
+        for (const agent of agents || []) {
+          if (agent.status === 'running') {
+            counts[agent.workspaceId] = (counts[agent.workspaceId] || 0) + 1;
+          }
+        }
+        setAgentCounts(counts);
+      } catch {}
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   // ── Resize ───────────────────────────────────────────────────────────────
   const handleResizeDelta = useCallback(
@@ -201,6 +219,7 @@ export default function Sidebar({
             onDrop={(e) => handleDrop(e, ws.id)}
             onDragEnd={handleDragEnd}
             isDragOver={dragOverId === ws.id}
+            agentCount={agentCounts[ws.id] || 0}
           />
         ))}
       </div>

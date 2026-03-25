@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { SurfaceRef, SurfaceId, PaneId } from '../../../shared/types';
+import { useStore } from '../../store';
 
 interface SurfaceTabBarProps {
   paneId: PaneId;
@@ -11,7 +12,8 @@ interface SurfaceTabBarProps {
   onDropSurface?: (sourcePaneId: PaneId, surfaceId: SurfaceId, targetPaneId: PaneId) => void;
 }
 
-function surfaceIcon(type: string): string {
+function surfaceIcon(type: string, isAgent: boolean): string {
+  if (isAgent) return '>_';
   switch (type) {
     case 'terminal': return '>';
     case 'browser': return '◎';
@@ -20,7 +22,8 @@ function surfaceIcon(type: string): string {
   }
 }
 
-function surfaceLabel(surface: SurfaceRef): string {
+function surfaceLabel(surface: SurfaceRef, agentLabel?: string): string {
+  if (agentLabel) return agentLabel;
   switch (surface.type) {
     case 'terminal': return 'Terminal';
     case 'browser': return 'Browser';
@@ -39,6 +42,8 @@ export default function SurfaceTabBar({
   onDropSurface,
 }: SurfaceTabBarProps) {
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const agentMeta = useStore((state) => state.agentMeta);
+  const getAgentMeta = (surfaceId: string) => agentMeta.get(surfaceId as any);
 
   // Always show tab bar (even for 1 surface — like browser tabs)
   return (
@@ -67,6 +72,8 @@ export default function SurfaceTabBar({
       <div className="surface-tab-bar__tabs">
         {surfaces.map((surface, index) => {
           const isActive = index === activeSurfaceIndex;
+          const agentMeta = getAgentMeta(surface.id);
+          const isAgent = !!agentMeta;
           return (
             <div
               key={surface.id}
@@ -74,6 +81,7 @@ export default function SurfaceTabBar({
                 'surface-tab',
                 isActive ? 'surface-tab--active' : '',
                 dragOverIndex === index ? 'surface-tab--drag-over' : '',
+                isAgent ? 'surface-tab--agent' : '',
               ].filter(Boolean).join(' ')}
               role="tab"
               aria-selected={isActive}
@@ -91,8 +99,8 @@ export default function SurfaceTabBar({
                 setDragOverIndex(index);
               }}
             >
-              <span className="surface-tab__icon">{surfaceIcon(surface.type)}</span>
-              <span className="surface-tab__label">{surfaceLabel(surface)}</span>
+              <span className="surface-tab__icon">{surfaceIcon(surface.type, isAgent)}</span>
+              <span className="surface-tab__label">{surfaceLabel(surface, agentMeta?.label)}</span>
               {surfaces.length > 1 && (
                 <button
                   className="surface-tab__close"

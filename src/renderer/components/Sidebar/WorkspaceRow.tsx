@@ -17,6 +17,7 @@ interface WorkspaceRowProps {
   onDrop?: (e: React.DragEvent) => void;
   onDragEnd?: (e: React.DragEvent) => void;
   isDragOver?: boolean;
+  agentCount?: number;
 }
 
 export default function WorkspaceRow({
@@ -32,6 +33,7 @@ export default function WorkspaceRow({
   onDrop,
   onDragEnd,
   isDragOver = false,
+  agentCount = 0,
 }: WorkspaceRowProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isRenaming, setIsRenaming] = useState(false);
@@ -79,6 +81,12 @@ export default function WorkspaceRow({
 
       {/* Title row */}
       <div className="workspace-row__header">
+        <span
+          className={`workspace-row__state-dot ${
+            workspace.shellState === 'running' ? 'workspace-row__state-dot--running' : ''
+          }`}
+          title={workspace.shellState === 'running' ? 'Command running' : 'Idle'}
+        />
         {isRenaming ? (
           <input
             ref={renameInputRef}
@@ -141,7 +149,8 @@ export default function WorkspaceRow({
         workspace.gitBranch ||
         workspace.cwd ||
         workspace.prNumber != null ||
-        portsStr) && (
+        portsStr ||
+        agentCount > 0) && (
         <div className="workspace-row__metadata">
           {/* Notification text */}
           {workspace.notificationText && (
@@ -185,6 +194,13 @@ export default function WorkspaceRow({
           {portsStr && (
             <div className="workspace-row__meta-line">
               {portsStr}
+            </div>
+          )}
+
+          {/* Agent count */}
+          {agentCount > 0 && (
+            <div className="workspace-row__meta-line workspace-row__agents">
+              {agentCount} agent{agentCount !== 1 ? 's' : ''}
             </div>
           )}
         </div>

@@ -103,3 +103,10 @@
   transition: color 0.1s ease, background 0.1s ease;
 }
 .surface-tab-bar__new-btn:hover { color: #fff; background: rgba(255,255,255,0.08); }
+
+.surface-tab--agent .surface-tab__icon {
+  color: #0091FF;
+}
+.surface-tab--agent .surface-tab__label {
+  color: rgba(0, 145, 255, 0.8);
+}
