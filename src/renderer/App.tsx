@@ -1,12 +1,28 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useStore } from './store';
-import { PaneId } from '../shared/types';
+import { PaneId, WorkspaceId, WorkspaceInfo } from '../shared/types';
 import SplitContainer from './components/SplitPane/SplitContainer';
 import { updateRatio, getAllPaneIds } from './store/split-utils';
+import Sidebar from './components/Sidebar/Sidebar';
+import Titlebar from './components/Titlebar/Titlebar';
+
+const DEFAULT_SIDEBAR_WIDTH = 200;
 
 export default function App() {
-  const { workspaces, activeWorkspaceId, createWorkspace, updateSplitTree } = useStore();
+  const {
+    workspaces,
+    activeWorkspaceId,
+    createWorkspace,
+    closeWorkspace,
+    selectWorkspace,
+    renameWorkspace,
+    reorderWorkspaces,
+    updateWorkspaceMetadata,
+    updateSplitTree,
+  } = useStore();
+
   const [focusedPaneId, setFocusedPaneId] = useState<PaneId | null>(null);
+  const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH);
 
   // Create initial workspace on mount
   useEffect(() => {
@@ -39,43 +55,52 @@ export default function App() {
     setFocusedPaneId(paneId);
   }, []);
 
-  return (
-    <div style={{ display: 'flex', height: '100vh' }}>
-      {/* Sidebar */}
-      <div
-        style={{
-          width: 200,
-          background: '#1a1a1a',
-          borderRight: '1px solid #333',
-          flexShrink: 0,
-        }}
-      >
-        <div
-          style={{
-            padding: 10,
-            fontSize: 12.5,
-            fontWeight: 600,
-            color: '#fdfff1',
-            height: 38,
-            display: 'flex',
-            alignItems: 'center',
-            WebkitAppRegion: 'drag',
-          } as React.CSSProperties & { WebkitAppRegion: string }}
-        >
-          wmux
-        </div>
-      </div>
+  const handleSidebarWidthChange = useCallback((newWidth: number) => {
+    setSidebarWidth(newWidth);
+  }, []);
 
-      {/* Content area */}
-      <div style={{ flex: 1, overflow: 'hidden' }}>
-        {activeWorkspace ? (
-          <SplitContainer
-            node={activeWorkspace.splitTree}
-            focusedPaneId={focusedPaneId}
-            onRatioChange={handleRatioChange}
-            onPaneFocus={handlePaneFocus}
-          />
-        ) : null}
+  const handleCreateWorkspace = useCallback(() => {
+    createWorkspace();
+  }, [createWorkspace]);
+
+  const handleUpdateMetadata = useCallback(
+    (id: WorkspaceId, partial: Partial<WorkspaceInfo>) => {
+      updateWorkspaceMetadata(id, partial);
+    },
+    [updateWorkspaceMetadata],
+  );
+
+  // Derive a title for the titlebar: active workspace title or blank
+  const titlebarText = activeWorkspace?.title ?? '';
+
+  return (
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <Titlebar title={titlebarText} />
+
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+        <Sidebar
+          workspaces={workspaces}
+          activeWorkspaceId={activeWorkspaceId}
+          sidebarWidth={sidebarWidth}
+          onWidthChange={handleSidebarWidthChange}
+          onSelect={selectWorkspace}
+          onClose={closeWorkspace}
+          onCreate={handleCreateWorkspace}
+          onRename={renameWorkspace}
+          onReorder={reorderWorkspaces}
+          onUpdateMetadata={handleUpdateMetadata}
+        />
+
+        <div style={{ flex: 1, overflow: 'hidden' }}>
+          {activeWorkspace ? (
+            <SplitContainer
+              node={activeWorkspace.splitTree}
+              focusedPaneId={focusedPaneId}
+              onRatioChange={handleRatioChange}
+              onPaneFocus={handlePaneFocus}
+            />
+          ) : null}
+        </div>
       </div>
     </div>
   );

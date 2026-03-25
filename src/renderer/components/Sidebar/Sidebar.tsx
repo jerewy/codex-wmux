@@ -1,0 +1,235 @@
+import React, { useState, useCallback } from 'react';
+import { WorkspaceInfo, WorkspaceId } from '../../../shared/types';
+import WorkspaceRow from './WorkspaceRow';
+import SidebarResizeHandle from './SidebarResizeHandle';
+import WorkspaceContextMenu from './WorkspaceContextMenu';
+import '../../styles/sidebar.css';
+
+interface ContextMenuState {
+  x: number;
+  y: number;
+  workspaceId: WorkspaceId;
+}
+
+interface SidebarProps {
+  workspaces: WorkspaceInfo[];
+  activeWorkspaceId: WorkspaceId | null;
+  sidebarWidth: number;
+  onWidthChange: (newWidth: number) => void;
+  onSelect: (id: WorkspaceId) => void;
+  onClose: (id: WorkspaceId) => void;
+  onCreate: () => void;
+  onRename: (id: WorkspaceId, title: string) => void;
+  onReorder: (ids: WorkspaceId[]) => void;
+  onUpdateMetadata: (id: WorkspaceId, partial: Partial<WorkspaceInfo>) => void;
+}
+
+export default function Sidebar({
+  workspaces,
+  activeWorkspaceId,
+  sidebarWidth,
+  onWidthChange,
+  onSelect,
+  onClose,
+  onCreate,
+  onRename,
+  onReorder,
+  onUpdateMetadata,
+}: SidebarProps) {
+  const [draggedId, setDraggedId] = useState<WorkspaceId | null>(null);
+  const [dragOverId, setDragOverId] = useState<WorkspaceId | null>(null);
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+
+  // ── Resize ───────────────────────────────────────────────────────────────
+  const handleResizeDelta = useCallback(
+    (delta: number) => {
+      const newWidth = Math.min(600, Math.max(180, sidebarWidth + delta));
+      onWidthChange(newWidth);
+    },
+    [sidebarWidth, onWidthChange],
+  );
+
+  // ── Drag-and-drop ────────────────────────────────────────────────────────
+  const handleDragStart = useCallback((e: React.DragEvent, id: WorkspaceId) => {
+    setDraggedId(id);
+    e.dataTransfer.effectAllowed = 'move';
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent, id: WorkspaceId) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (id !== draggedId) {
+      setDragOverId(id);
+    }
+  }, [draggedId]);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent, targetId: WorkspaceId) => {
+      e.preventDefault();
+      if (!draggedId || draggedId === targetId) return;
+
+      const ids = workspaces.map((w) => w.id);
+      const fromIdx = ids.indexOf(draggedId);
+      const toIdx = ids.indexOf(targetId);
+      if (fromIdx === -1 || toIdx === -1) return;
+
+      const reordered = [...ids];
+      reordered.splice(fromIdx, 1);
+      reordered.splice(toIdx, 0, draggedId);
+      onReorder(reordered);
+
+      setDraggedId(null);
+      setDragOverId(null);
+    },
+    [draggedId, workspaces, onReorder],
+  );
+
+  const handleDragEnd = useCallback(() => {
+    setDraggedId(null);
+    setDragOverId(null);
+  }, []);
+
+  // ── Context menu ─────────────────────────────────────────────────────────
+  const handleContextMenu = useCallback((e: React.MouseEvent, id: WorkspaceId) => {
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY, workspaceId: id });
+  }, []);
+
+  const closeContextMenu = useCallback(() => {
+    setContextMenu(null);
+  }, []);
+
+  // ── Pin/unpin from context menu ──────────────────────────────────────────
+  const handlePin = useCallback(
+    (id: WorkspaceId) => {
+      const ws = workspaces.find((w) => w.id === id);
+      if (ws) onUpdateMetadata(id, { pinned: !ws.pinned });
+    },
+    [workspaces, onUpdateMetadata],
+  );
+
+  // ── Color from context menu ──────────────────────────────────────────────
+  const handleSetColor = useCallback(
+    (id: WorkspaceId, color: string | null) => {
+      onUpdateMetadata(id, { customColor: color ?? undefined });
+    },
+    [onUpdateMetadata],
+  );
+
+  // ── Move helpers ─────────────────────────────────────────────────────────
+  const handleMoveUp = useCallback(
+    (id: WorkspaceId) => {
+      const ids = workspaces.map((w) => w.id);
+      const idx = ids.indexOf(id);
+      if (idx <= 0) return;
+      const reordered = [...ids];
+      [reordered[idx - 1], reordered[idx]] = [reordered[idx], reordered[idx - 1]];
+      onReorder(reordered);
+    },
+    [workspaces, onReorder],
+  );
+
+  const handleMoveDown = useCallback(
+    (id: WorkspaceId) => {
+      const ids = workspaces.map((w) => w.id);
+      const idx = ids.indexOf(id);
+      if (idx === -1 || idx >= ids.length - 1) return;
+      const reordered = [...ids];
+      [reordered[idx], reordered[idx + 1]] = [reordered[idx + 1], reordered[idx]];
+      onReorder(reordered);
+    },
+    [workspaces, onReorder],
+  );
+
+  const handleMoveToTop = useCallback(
+    (id: WorkspaceId) => {
+      const ids = workspaces.map((w) => w.id);
+      const idx = ids.indexOf(id);
+      if (idx <= 0) return;
+      const reordered = [id, ...ids.filter((i) => i !== id)];
+      onReorder(reordered);
+    },
+    [workspaces, onReorder],
+  );
+
+  // ── Mark as read/unread ──────────────────────────────────────────────────
+  const handleMarkRead = useCallback(
+    (id: WorkspaceId) => {
+      onUpdateMetadata(id, { unreadCount: 0 });
+    },
+    [onUpdateMetadata],
+  );
+
+  const handleMarkUnread = useCallback(
+    (id: WorkspaceId) => {
+      const ws = workspaces.find((w) => w.id === id);
+      if (ws && ws.unreadCount === 0) {
+        onUpdateMetadata(id, { unreadCount: 1 });
+      }
+    },
+    [workspaces, onUpdateMetadata],
+  );
+
+  // ── Close other workspaces ───────────────────────────────────────────────
+  const handleCloseOthers = useCallback(
+    (id: WorkspaceId) => {
+      workspaces
+        .filter((w) => w.id !== id)
+        .forEach((w) => onClose(w.id));
+    },
+    [workspaces, onClose],
+  );
+
+  return (
+    <div className="sidebar" style={{ width: sidebarWidth }}>
+      <div className="sidebar__scroll">
+        <div className="sidebar__workspace-list">
+          {workspaces.map((ws) => (
+            <WorkspaceRow
+              key={ws.id}
+              workspace={ws}
+              isActive={ws.id === activeWorkspaceId}
+              onSelect={() => onSelect(ws.id)}
+              onClose={() => onClose(ws.id)}
+              onContextMenu={(e) => handleContextMenu(e, ws.id)}
+              draggable
+              onDragStart={(e) => handleDragStart(e, ws.id)}
+              onDragOver={(e) => handleDragOver(e, ws.id)}
+              onDrop={(e) => handleDrop(e, ws.id)}
+              onDragEnd={handleDragEnd}
+              isDragOver={dragOverId === ws.id}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="sidebar__footer">
+        <button className="sidebar__new-btn" onClick={onCreate} title="New workspace">
+          +
+        </button>
+      </div>
+
+      <SidebarResizeHandle onWidthChange={handleResizeDelta} />
+
+      {contextMenu && (
+        <WorkspaceContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          workspaceId={contextMenu.workspaceId}
+          workspace={workspaces.find((w) => w.id === contextMenu.workspaceId)!}
+          onClose={closeContextMenu}
+          onPin={handlePin}
+          onRename={onRename}
+          onSetColor={handleSetColor}
+          onMoveUp={handleMoveUp}
+          onMoveDown={handleMoveDown}
+          onMoveToTop={handleMoveToTop}
+          onCloseWorkspace={(id) => { onClose(id); closeContextMenu(); }}
+          onCloseOthers={(id) => { handleCloseOthers(id); closeContextMenu(); }}
+          onMarkRead={handleMarkRead}
+          onMarkUnread={handleMarkUnread}
+        />
+      )}
+    </div>
+  );
+}
