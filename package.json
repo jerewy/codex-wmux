@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "description": "Windows terminal multiplexer for AI agents",
   "main": "dist/main/index.js",
+  "bin": {
+    "wmux": "dist/cli/wmux.js"
+  },
   "scripts": {
     "dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
     "build": "tsc -p tsconfig.node.json && vite build && electron-builder",
