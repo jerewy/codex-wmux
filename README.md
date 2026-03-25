@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <img src="./final.png" alt="wmux screenshot" width="900" />
+  <img src="./docs/assets/wmux-full.png" alt="wmux screenshot" width="900" />
 </p>
 
 ## Features
@@ -24,34 +24,34 @@
 Panes get a blue ring and tabs light up when coding agents need your attention. Supports OSC 9/99/777, <code>wmux notify</code> CLI, and idle detection.
 </td>
 <td width="60%">
-Ctrl+Shift+U jumps to the most recent unread. Windows toast notifications and taskbar flash ensure you never miss an agent waiting for input.
+<img src="./docs/assets/wmux-terminals.png" alt="Terminal panes with notification rings" width="100%" />
 </td>
 </tr>
 <tr>
 <td width="40%" valign="middle">
 <h3>Vertical tabs</h3>
-See all your sessions at a glance in a sidebar. Git branch, linked PR status, working directory, listening ports, and latest notification text per workspace.
+See all your sessions at a glance in a sidebar. Git branch, PR status, working directory, listening ports, and notification text. Double-click to rename. Right-click for colors and workspace management.
 </td>
 <td width="60%">
-Double-click to rename. Right-click for color coding, pinning, and workspace management. Drag to reorder. Metadata updates in real time from shell integration.
+<img src="./docs/assets/wmux-sidebar.png" alt="Sidebar with workspace metadata" width="50%" />
 </td>
 </tr>
 <tr>
 <td width="40%" valign="middle">
 <h3>In-app browser</h3>
-Split a browser alongside your terminals. Scriptable API for clicking, filling forms, evaluating JS, and snapshotting the accessibility tree.
+Split a browser alongside your terminals. Scriptable API for clicking, filling forms, evaluating JS, and snapshotting the accessibility tree. Preview localhost next to the terminal that runs it.
 </td>
 <td width="60%">
-Preview <code>localhost:3000</code> next to the terminal that runs it. Agents can interact with your dev server directly through the socket API.
+<img src="./docs/assets/wmux-browser.png" alt="In-app browser panel" width="100%" />
 </td>
 </tr>
 <tr>
 <td width="40%" valign="middle">
-<h3>Split panes + draggable tabs</h3>
-Horizontal and vertical splits within each workspace. Each pane supports multiple surface tabs (terminal, browser, markdown). Drag tabs between panes.
+<h3>First-launch tutorial</h3>
+Interactive onboarding walks you through workspaces, splits, tabs, browser, and notifications. Reopen anytime from the <code>?</code> button in the title bar.
 </td>
 <td width="60%">
-Default layout: two terminals on top, one wide terminal on the bottom, browser on the right. Fully customizable. Ctrl+D to split, Ctrl+Shift+Enter to zoom.
+<img src="./docs/assets/wmux-tutorial.png" alt="First-launch tutorial" width="100%" />
 </td>
 </tr>
 </table>
