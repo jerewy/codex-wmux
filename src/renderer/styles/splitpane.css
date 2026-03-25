@@ -1,0 +1,20 @@
+.split-container {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+.split-container--horizontal { flex-direction: row; }
+.split-container--vertical { flex-direction: column; }
+.split-child { overflow: hidden; position: relative; min-width: 80px; min-height: 80px; }
+.split-divider { flex-shrink: 0; background: transparent; position: relative; z-index: 10; }
+.split-divider--horizontal { width: 6px; cursor: col-resize; }
+.split-divider--vertical { height: 6px; cursor: row-resize; }
+.split-divider__line { position: absolute; background: rgba(255,255,255,0.06); }
+.split-divider--horizontal .split-divider__line { width: 1px; height: 100%; left: 50%; transform: translateX(-50%); }
+.split-divider--vertical .split-divider__line { height: 1px; width: 100%; top: 50%; transform: translateY(-50%); }
+.pane-wrapper { position: relative; width: 100%; height: 100%; }
+.pane-wrapper__unfocused-overlay {
+  position: absolute; inset: 0; background: rgba(0,0,0,0.3);
+  pointer-events: none; z-index: 5; transition: opacity 0.15s ease;
+}
