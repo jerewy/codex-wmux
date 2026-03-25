@@ -1,33 +1,69 @@
 <h1 align="center">wmux</h1>
-
-<p align="center">The terminal for multitasking on Windows.</p>
+<p align="center">A Windows terminal with vertical tabs and notifications for AI coding agents</p>
 
 <p align="center">
-  Native Windows app built on Electron + xterm.js. Vertical tabs, notification rings when agents need attention, split panes, and a socket API for automation.
+  Built on Electron + xterm.js. Inspired by <a href="https://github.com/manaflow-ai/cmux">cmux</a>.
 </p>
 
----
+<p align="center">
+  <a href="https://github.com/amirlehmam/wmux"><img src="https://img.shields.io/badge/platform-Windows-0078D4?logo=windows" alt="Windows" /></a>
+  <a href="https://github.com/amirlehmam/wmux/releases"><img src="https://img.shields.io/github/v/release/amirlehmam/wmux?label=release&color=555" alt="Release" /></a>
+  <a href="https://github.com/amirlehmam/wmux/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-555" alt="License" /></a>
+</p>
+
+<p align="center">
+  <img src="./final.png" alt="wmux screenshot" width="900" />
+</p>
 
 ## Features
 
-**Notification rings** -- Panes flash blue when an AI agent needs your input. OSC 9/99/777 escape sequences, `wmux notify` CLI command, or idle detection. Cmd+Shift+U jumps to the most recent unread.
-
-**Vertical tabs** -- See all your sessions at a glance in a sidebar. Git branch, PR status, working directory, listening ports, and notification text per workspace. Double-click to rename.
-
-**Split panes** -- Horizontal and vertical splits within each workspace. Drag dividers to resize. Toggle zoom on any pane with Ctrl+Shift+Enter.
-
-**In-app browser** -- A Chromium-based browser panel alongside your terminals. Scriptable API for clicking, filling forms, evaluating JS, and snapshotting the accessibility tree.
-
-**Draggable surface tabs** -- Each pane supports multiple surfaces (terminals, browser, markdown). Drag tabs between panes to reorganize your layout.
+<table>
+<tr>
+<td width="40%" valign="middle">
+<h3>Notification rings</h3>
+Panes get a blue ring and tabs light up when coding agents need your attention. Supports OSC 9/99/777, <code>wmux notify</code> CLI, and idle detection.
+</td>
+<td width="60%">
+Ctrl+Shift+U jumps to the most recent unread. Windows toast notifications and taskbar flash ensure you never miss an agent waiting for input.
+</td>
+</tr>
+<tr>
+<td width="40%" valign="middle">
+<h3>Vertical tabs</h3>
+See all your sessions at a glance in a sidebar. Git branch, linked PR status, working directory, listening ports, and latest notification text per workspace.
+</td>
+<td width="60%">
+Double-click to rename. Right-click for color coding, pinning, and workspace management. Drag to reorder. Metadata updates in real time from shell integration.
+</td>
+</tr>
+<tr>
+<td width="40%" valign="middle">
+<h3>In-app browser</h3>
+Split a browser alongside your terminals. Scriptable API for clicking, filling forms, evaluating JS, and snapshotting the accessibility tree.
+</td>
+<td width="60%">
+Preview <code>localhost:3000</code> next to the terminal that runs it. Agents can interact with your dev server directly through the socket API.
+</td>
+</tr>
+<tr>
+<td width="40%" valign="middle">
+<h3>Split panes + draggable tabs</h3>
+Horizontal and vertical splits within each workspace. Each pane supports multiple surface tabs (terminal, browser, markdown). Drag tabs between panes.
+</td>
+<td width="60%">
+Default layout: two terminals on top, one wide terminal on the bottom, browser on the right. Fully customizable. Ctrl+D to split, Ctrl+Shift+Enter to zoom.
+</td>
+</tr>
+</table>
 
 - **Scriptable** -- Named pipe server (`\\.\pipe\wmux`) with a JSON-RPC API. Create workspaces, split panes, send keystrokes, read terminal content, and control the browser programmatically.
-- **Windows native** -- Built with Electron 33, ConPTY for proper terminal emulation, Windows toast notifications, taskbar flash on alerts.
+- **Windows native** -- ConPTY for proper terminal emulation, Windows toast notifications, taskbar flash on alerts, native title bar overlay.
 - **Windows Terminal + Ghostty compatible** -- Import your themes, fonts, and colors from Windows Terminal `settings.json` or `~/.config/ghostty/config`. Ships with 450+ bundled Ghostty themes.
 - **GPU-accelerated** -- xterm.js with WebGL rendering for smooth terminal output at any speed.
 
 ## Install
 
-### From source (current)
+### From source
 
 ```bash
 git clone https://github.com/amirlehmam/wmux.git
@@ -37,7 +73,7 @@ npm run build:main
 npm run dev
 ```
 
-### Portable / Installer (coming soon)
+### Portable / Installer
 
 ```bash
 npm run build
@@ -46,15 +82,19 @@ npm run build
 
 ## Why wmux?
 
-Running multiple Claude Code sessions in parallel is the fastest way to ship. But on Windows, there was no good way to do it. Windows Terminal has tabs, but no notification system -- you have to manually check each tab to see if an agent finished or is waiting for input. tmux works in WSL but loses all Windows integration. Electron-based terminals exist but none focus on the AI agent workflow.
+I run a lot of Claude Code sessions in parallel. On macOS there is [cmux](https://github.com/manaflow-ai/cmux), and it is exactly what I needed -- vertical tabs with live metadata, notification rings when agents need attention, a scriptable browser, and a socket API for automation. But I work on Windows, and nothing like it existed.
 
-wmux is a Windows port of [cmux](https://github.com/manaflow-ai/cmux), built from scratch with the same design philosophy. It gives you a sidebar that shows exactly what each agent is doing -- the git branch it is on, the PR it opened, the ports it is listening on, and whether it needs your attention. When an agent finishes a task or hits a question, the pane gets a blue notification ring, the sidebar badge increments, and a Windows toast notification fires.
+Windows Terminal has tabs but no notification system. You have to manually check each tab to see if an agent finished or is waiting for input. tmux works in WSL but loses all Windows integration. Electron terminals exist but none focus on the AI agent workflow.
 
-The sidebar is not just a list of tabs. Each workspace shows live metadata reported by shell integration scripts that run inside your PowerShell, CMD, or WSL sessions. The scripts report CWD changes, git branch switches, and PR status via a named pipe. The main process polls for listening ports and forwards everything to the UI.
+So I built wmux. It is a ground-up Windows reimplementation of cmux, built with Electron, React, xterm.js, and node-pty. Same design philosophy, same socket protocol, same UX patterns -- adapted for Windows with ConPTY, named pipes, PowerShell integration, and native toast notifications.
+
+The sidebar shows exactly what each agent is doing -- the git branch it is on, the PR it opened, the ports it is listening on, and whether it needs your attention. When an agent finishes a task or hits a question, the pane gets a blue notification ring, the sidebar badge increments, and a Windows toast fires. Ctrl+Shift+U jumps to the most recent unread.
+
+Shell integration scripts inject themselves into PowerShell, CMD, and WSL sessions. They report CWD changes, git branch switches, and PR status back to the sidebar via a named pipe. The main process polls for listening ports and forwards everything to the UI in real time.
 
 The in-app browser is for previewing what your agents build. `localhost:3000` running in one terminal, visible in the browser panel next to it. The browser is scriptable -- AI agents can navigate, click, fill forms, and read the accessibility tree through the socket API.
 
-Everything is automatable through the `wmux` CLI or the named pipe directly. Create workspaces, split panes, send text to terminals, read screen content, trigger notifications. The protocol matches cmux so tools built for one work with the other.
+Everything is automatable through the `wmux` CLI or the named pipe directly. The protocol matches cmux, so tools built for one work with the other.
 
 ## Shell Integration
 
@@ -67,7 +107,7 @@ wmux automatically injects integration scripts into your shells:
 Environment variables available in all shells:
 
 | Variable | Description |
-|---|---|
+|----------|-------------|
 | `WMUX` | Always `1` inside wmux |
 | `WMUX_WORKSPACE_ID` | Current workspace ID |
 | `WMUX_PANE_ID` | Current pane ID |
@@ -81,66 +121,76 @@ All shortcuts are rebindable via Settings (Ctrl+,).
 ### Workspaces
 
 | Shortcut | Action |
-|---|---|
+|----------|--------|
 | Ctrl+N | New workspace |
-| Ctrl+Shift+W | Close workspace |
-| Ctrl+B | Toggle sidebar |
+| Ctrl+1-8 | Jump to workspace 1-8 |
+| Ctrl+9 | Jump to last workspace |
 | Ctrl+PageDown | Next workspace |
 | Ctrl+PageUp | Previous workspace |
-| Ctrl+1...9 | Select workspace by number |
+| Ctrl+Shift+W | Close workspace |
 | Ctrl+Shift+R | Rename workspace |
-| F2 | Rename surface tab |
+| Ctrl+B | Toggle sidebar |
 
 ### Surfaces
 
 | Shortcut | Action |
-|---|---|
-| Ctrl+T | New surface (tab in pane) |
-| Ctrl+W | Close active surface / pane |
+|----------|--------|
+| Ctrl+T | New surface |
 | Ctrl+Shift+] | Next surface |
 | Ctrl+Shift+[ | Previous surface |
-| Alt+1...9 | Select surface by number |
+| Alt+1-8 | Jump to surface 1-8 |
+| Ctrl+W | Close surface |
 
 ### Split Panes
 
 | Shortcut | Action |
-|---|---|
+|----------|--------|
 | Ctrl+D | Split right |
 | Ctrl+Shift+D | Split down |
+| Ctrl+Alt+Arrow | Focus pane directionally |
 | Ctrl+Shift+Enter | Toggle pane zoom |
-| Ctrl+Alt+Arrow | Focus pane in direction |
+| Ctrl+Shift+H | Flash focused panel |
 
 ### Browser
 
 | Shortcut | Action |
-|---|---|
+|----------|--------|
 | Ctrl+Shift+I | Toggle browser panel |
-| Ctrl+Alt+I | Browser DevTools |
-| Ctrl+Alt+C | Browser console |
+| Ctrl+Alt+I | Toggle Developer Tools |
+| Ctrl+Alt+C | Show JavaScript Console |
 
 ### Notifications
 
 | Shortcut | Action |
-|---|---|
+|----------|--------|
 | Ctrl+Shift+U | Jump to latest unread |
 | Ctrl+Shift+H | Flash focused pane |
+
+### Find
+
+| Shortcut | Action |
+|----------|--------|
+| Ctrl+F | Find |
+| Enter / Shift+Enter | Find next / previous |
+| Escape | Close find bar |
 
 ### Terminal
 
 | Shortcut | Action |
-|---|---|
-| Ctrl+F | Find in terminal |
+|----------|--------|
 | Ctrl+Shift+C | Copy |
 | Ctrl+Shift+V | Paste |
-| Ctrl+Shift+M | Toggle copy mode |
+| Ctrl+C | Copy (with selection) / interrupt (without) |
+| Ctrl+= / Ctrl+- | Increase / decrease font size |
+| Ctrl+0 | Reset font size |
 
-### General
+### Window
 
 | Shortcut | Action |
-|---|---|
+|----------|--------|
+| Ctrl+Shift+N | New window |
 | Ctrl+, | Settings |
 | Ctrl+Shift+P | Command palette |
-| Ctrl+Shift+N | New window |
 
 ## CLI
 
@@ -153,45 +203,49 @@ wmux new-workspace --title "API"   # Create a workspace
 wmux list-workspaces               # List all workspaces
 wmux split --right                 # Split focused pane
 wmux send "npm test"               # Send text to terminal
+wmux send-key Enter --ctrl         # Send keystroke
 wmux read-screen --lines 50        # Read terminal content
 wmux browser open http://localhost:3000
-wmux tree                          # Show workspace/pane/surface hierarchy
+wmux browser snapshot              # Accessibility tree for AI agents
+wmux tree                          # Workspace/pane/surface hierarchy
 ```
-
-Full command reference: `wmux --help`
 
 ## Socket API
 
-Connect to `\\.\pipe\wmux` for programmatic control.
+Connect to `\\.\pipe\wmux` for programmatic control. Two protocols supported:
 
-**V1 protocol** (text, used by shell integration):
+**V1** (text, used by shell integration):
 ```
 report_pwd <surface_id> <path>
 report_git_branch <surface_id> <branch> [dirty]
+report_shell_state <surface_id> idle|running
 notify <surface_id> <text>
 ping
 ```
 
-**V2 protocol** (JSON-RPC, used by CLI and automation):
+**V2** (JSON-RPC, used by CLI and automation):
 ```json
 {"method": "workspace.create", "params": {"title": "Agent 1"}}
+{"method": "workspace.list", "params": {}}
 {"method": "surface.send_text", "params": {"id": "surf-...", "text": "npm test\n"}}
 {"method": "surface.read_text", "params": {"id": "surf-...", "lines": 50}}
 {"method": "browser.navigate", "params": {"surfaceId": "surf-...", "url": "http://localhost:3000"}}
 {"method": "browser.snapshot", "params": {"surfaceId": "surf-..."}}
+{"method": "system.tree", "params": {}}
 ```
 
 ## Session Restore
 
-On restart, wmux restores:
+On relaunch, wmux restores:
+
 - Window position and size
-- All workspaces with titles, colors, pin state
-- Split pane layout (directions and ratios)
-- Working directory per terminal (new shell spawned in saved CWD)
+- Workspace layout (titles, colors, pin state)
+- Split pane structure (directions and ratios)
+- Working directory per terminal
 - Browser panel URLs
 - Active workspace and pane selection
 
-**Not restored:** running processes, shell history, notification state. Shells are respawned fresh in the saved working directories.
+wmux does **not** restore live process state. Active Claude Code, tmux, or vim sessions are not resumed after restart. Shells are respawned fresh in the saved working directories.
 
 ## Config
 
@@ -200,22 +254,20 @@ wmux reads configuration from two sources:
 1. **Windows Terminal** -- `%LOCALAPPDATA%\Packages\Microsoft.WindowsTerminal_...\LocalState\settings.json`
 2. **Ghostty** -- `~/.config/ghostty/config`
 
-Import either via Settings > Terminal > Import buttons. Extracts font family, font size, color scheme, and palette.
-
-Default theme is Monokai. 450+ Ghostty themes bundled and available in Settings > Terminal > Theme.
+Import either via Settings > Terminal > Import. Extracts font family, font size, color scheme, and palette. Default theme is Monokai. 450+ Ghostty themes bundled.
 
 ## Architecture
 
-Two-process Electron model. Main process manages PTY spawning (node-pty/ConPTY), named pipe server, port scanning, git/PR polling, notifications, session persistence, and multi-window lifecycle. Renderer process runs a React/Zustand app with xterm.js (WebGL), recursive split pane layout, and the sidebar UI. Communication via typed contextBridge IPC.
+Two-process Electron model. Main process manages PTY spawning (node-pty/ConPTY), named pipe server, port scanning, git/PR polling, notifications, session persistence, and multi-window lifecycle. Renderer process runs React/Zustand with xterm.js (WebGL), recursive split pane layout, and the sidebar.
 
 ```
 src/
-  main/           # Electron main process
-  renderer/       # React app
-  preload/        # contextBridge API
-  cli/            # wmux CLI
-  shared/         # Types shared between processes
-  shell-integration/  # PowerShell, CMD, WSL scripts
+  main/               # Electron main process
+  renderer/            # React app (sidebar, splits, terminals, browser)
+  preload/             # contextBridge API
+  cli/                 # wmux CLI tool
+  shared/              # Types shared between main and renderer
+  shell-integration/   # PowerShell, CMD, WSL scripts
 ```
 
 ## Based on cmux
@@ -229,4 +281,4 @@ wmux is a Windows reimplementation of [cmux](https://github.com/manaflow-ai/cmux
 
 ## License
 
-AGPL-3.0-or-later. See [LICENSE](LICENSE) for details.
+wmux is open source under [AGPL-3.0-or-later](LICENSE).
