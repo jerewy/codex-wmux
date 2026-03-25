@@ -1,5 +1,5 @@
 #<p align="center">
-#  <img src="./docs/assets/wmux_logo.png" alt="wmux logo" width="120" />
+  #<img src="./docs/assets/wmux_logo.png" alt="wmux logo" width="120" />
 #</p>
 <h1 align="center">wmux</h1>
 <p align="center">A Windows terminal with vertical tabs and notifications for AI coding agents</p>
