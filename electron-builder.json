@@ -2,13 +2,11 @@
   "appId": "com.wmux.app",
   "productName": "wmux",
   "directories": {
-    "output": "release",
-    "buildResources": "resources"
+    "output": "release"
   },
   "files": [
     "dist/**/*",
     "node_modules/**/*",
-    "!node_modules/**/build/**/*",
     "!**/*.ts",
     "!**/*.tsx",
     "!src/**/*",
@@ -17,14 +15,8 @@
   ],
   "win": {
     "target": [
-      {
-        "target": "nsis",
-        "arch": ["x64"]
-      },
-      {
-        "target": "portable",
-        "arch": ["x64"]
-      }
+      { "target": "nsis", "arch": ["x64"] },
+      { "target": "portable", "arch": ["x64"] }
     ]
   },
   "nsis": {
