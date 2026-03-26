@@ -68,6 +68,9 @@ contextBridge.exposeInMainWorld('wmux', {
       return () => ipcRenderer.removeListener(IPC_CHANNELS.AGENT_UPDATE, handler);
     },
   },
+  clipboard: {
+    pasteImage: () => ipcRenderer.invoke('clipboard:paste-image'),
+  },
   cdp: {
     attach: (webContentsId: number) => ipcRenderer.send(IPC_CHANNELS.CDP_ATTACH, webContentsId),
     detach: () => ipcRenderer.send(IPC_CHANNELS.CDP_DETACH),

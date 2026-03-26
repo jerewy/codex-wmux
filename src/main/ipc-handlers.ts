@@ -1,4 +1,7 @@
-import { ipcMain, BrowserWindow } from 'electron';
+import { ipcMain, BrowserWindow, clipboard } from 'electron';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
 import { IPC_CHANNELS, SurfaceId, WindowId } from '../shared/types';
 import { PtyManager } from './pty-manager';
 import { NotificationManager } from './notification-manager';
@@ -128,6 +131,17 @@ export function registerIpcHandlers(windowManager: WindowManager): void {
   });
   ipcMain.handle(IPC_CHANNELS.AGENT_STATUS, async (_event, agentId: string) => {
     return agentManager.getStatus(agentId as any);
+  });
+
+  // Clipboard image paste: save clipboard image to temp file, return path
+  ipcMain.handle('clipboard:paste-image', async () => {
+    const img = clipboard.readImage();
+    if (img.isEmpty()) return null;
+    const tmpDir = path.join(os.tmpdir(), 'wmux');
+    fs.mkdirSync(tmpDir, { recursive: true });
+    const filePath = path.join(tmpDir, `screenshot-${Date.now()}.png`);
+    fs.writeFileSync(filePath, img.toPNG());
+    return filePath;
   });
 }
 

@@ -144,19 +144,27 @@ export function useTerminal({ surfaceId, shell, cwd }: UseTerminalOptions = {}):
       fit();
     });
 
-    // Attach custom key handler for Ctrl+C
+    // Attach custom key handler for Ctrl+C and Ctrl+V (image paste)
     terminal.attachCustomKeyEventHandler((event: KeyboardEvent) => {
       if (event.type === 'keydown' && event.ctrlKey && event.key === 'c') {
         const selection = terminal.getSelection();
         if (selection) {
-          // Copy selection to clipboard and clear it
-          navigator.clipboard.writeText(selection).catch(() => {
-            // Clipboard write can fail in some contexts — ignore
-          });
+          navigator.clipboard.writeText(selection).catch(() => {});
           terminal.clearSelection();
-          return false; // Prevent the keystroke from reaching the PTY
+          return false;
         }
-        // No selection — let \x03 pass through to PTY normally
+      }
+      // Ctrl+V: check for image in clipboard before letting text paste through
+      if (event.type === 'keydown' && event.ctrlKey && event.key === 'v') {
+        if (window.wmux?.clipboard?.pasteImage) {
+          window.wmux.clipboard.pasteImage().then((filePath: string | null) => {
+            if (filePath && ptyIdRef.current) {
+              // Image found — inject path into terminal
+              window.wmux.pty.write(ptyIdRef.current, filePath);
+            }
+            // If no image, normal text paste already happened via xterm
+          });
+        }
       }
       return true;
     });
