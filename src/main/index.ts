@@ -10,7 +10,7 @@ import { IPC_CHANNELS } from '../shared/types';
 import { loadSession, saveSession, SessionData } from './session-persistence';
 import { WindowManager } from './window-manager';
 import { initAutoUpdater } from './updater';
-import { ensureClaudeContext, ensureClaudeHooks } from './claude-context';
+import { ensureClaudeContext, ensureClaudeHooks, ensureChromeDevtoolsConfig } from './claude-context';
 
 const windowManager = new WindowManager();
 const pipeServer = new PipeServer();
@@ -41,6 +41,7 @@ app.whenReady().then(() => {
   // Inject wmux instructions into ~/.claude/CLAUDE.md for Claude Code awareness
   ensureClaudeContext();
   ensureClaudeHooks();
+  ensureChromeDevtoolsConfig();
 
   // IPC: renderer pushes session state (auto-save response or explicit save)
   ipcMain.on('session:save', (_event, data: SessionData) => {
