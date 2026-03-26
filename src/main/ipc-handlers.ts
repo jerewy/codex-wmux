@@ -59,6 +59,10 @@ export function registerIpcHandlers(windowManager: WindowManager): void {
     ptyManager.kill(id);
   });
 
+  ipcMain.handle(IPC_CHANNELS.PTY_HAS, (_event, id: SurfaceId) => {
+    return ptyManager.has(id);
+  });
+
   ipcMain.handle(IPC_CHANNELS.SYSTEM_GET_SHELLS, async () => {
     return detectShells();
   });

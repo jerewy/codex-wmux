@@ -5,6 +5,7 @@ import CopyMode from './CopyMode';
 import '../../styles/terminal.css';
 
 interface TerminalPaneProps {
+  surfaceId?: string;
   shell?: string;
   cwd?: string;
   focused?: boolean;
@@ -14,6 +15,7 @@ interface TerminalPaneProps {
 }
 
 export default function TerminalPane({
+  surfaceId,
   shell,
   cwd,
   focused = true,
@@ -21,7 +23,7 @@ export default function TerminalPane({
   onFindBarClose,
   copyModeActive = false,
 }: TerminalPaneProps) {
-  const { terminalRef, searchAddonRef } = useTerminal({ shell, cwd });
+  const { terminalRef, searchAddonRef } = useTerminal({ surfaceId, shell, cwd });
 
   const [_lastQuery, setLastQuery] = useState('');
 

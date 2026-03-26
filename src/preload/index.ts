@@ -11,6 +11,8 @@ contextBridge.exposeInMainWorld('wmux', {
       ipcRenderer.send(IPC_CHANNELS.PTY_RESIZE, id, cols, rows),
     kill: (id: string) =>
       ipcRenderer.send(IPC_CHANNELS.PTY_KILL, id),
+    has: (id: string) =>
+      ipcRenderer.invoke(IPC_CHANNELS.PTY_HAS, id),
     onData: (id: string, callback: (data: string) => void) => {
       const handler = (_event: Electron.IpcRendererEvent, ptyId: string, data: string) => {
         if (ptyId === id) callback(data);

@@ -126,6 +126,7 @@ export default function PaneWrapper({ leaf, isFocused }: PaneWrapperProps) {
       case 'terminal':
         return (
           <TerminalPane
+            surfaceId={activeSurface.id}
             focused={isFocused}
             showFindBar={findBarVisible && isFocused}
             onFindBarClose={handleFindBarClose}

@@ -151,6 +151,7 @@ export const IPC_CHANNELS = {
   PTY_WRITE: 'pty:write',
   PTY_RESIZE: 'pty:resize',
   PTY_KILL: 'pty:kill',
+  PTY_HAS: 'pty:has',
   PTY_DATA: 'pty:data',
   PTY_EXIT: 'pty:exit',
   // Workspace

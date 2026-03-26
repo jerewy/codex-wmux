@@ -211,26 +211,6 @@ async function main() {
       case 'log': console.log(JSON.stringify(await sendV2('sidebar.log', { level: args[1], message: args.slice(2).join(' ') }), null, 2)); break;
       case 'sidebar-state': console.log(JSON.stringify(await sendV2('sidebar.get_state'), null, 2)); break;
 
-      case 'browse': {
-        // Launch the autonomous browser agent
-        const task = args.slice(1).join(' ');
-        if (!task) { console.error('Usage: wmux browse <task description>'); process.exit(1); }
-        const { execFileSync } = require('child_process');
-        const agentScript = require('path').join(__dirname, 'browser-agent.js');
-        try {
-          const result = execFileSync('node', [agentScript, '--task', task], {
-            stdio: ['inherit', 'pipe', 'inherit'],
-            env: { ...process.env },
-            timeout: 120000,
-          });
-          console.log(result.toString());
-        } catch (err: any) {
-          if (err.stdout) console.log(err.stdout.toString());
-          process.exit(err.status || 1);
-        }
-        break;
-      }
-
       default:
         console.error(`Unknown command: ${command}`);
         printUsage();
@@ -257,7 +237,6 @@ Surface:    new-surface, close-surface, focus-surface, list-surfaces
 Pane:       split, close-pane, focus-pane, zoom-pane, list-panes, tree
 Terminal:   send <text>, send-key <key>, read-screen, trigger-flash
 Browser:    browser open|snapshot|click|type|fill|screenshot|get-text|eval|wait|back|forward|reload
-Browse:     browse <task> — autonomous browser agent (requires ANTHROPIC_API_KEY)
 Agent:      agent spawn|spawn-batch|status|list|kill
 Markdown:   markdown set <id> --content <text> | --file <path>
 Notify:     notify <text>, list-notifications, clear-notifications

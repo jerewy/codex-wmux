@@ -15,6 +15,7 @@ declare global {
 }
 
 interface UseTerminalOptions {
+  surfaceId?: string;
   shell?: string;
   cwd?: string;
 }
@@ -26,7 +27,7 @@ interface UseTerminalResult {
   searchAddonRef: React.RefObject<SearchAddon | null>;
 }
 
-export function useTerminal({ shell, cwd }: UseTerminalOptions = {}): UseTerminalResult {
+export function useTerminal({ surfaceId, shell, cwd }: UseTerminalOptions = {}): UseTerminalResult {
   const terminalRef = useRef<HTMLDivElement | null>(null);
   const xtermRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -160,43 +161,51 @@ export function useTerminal({ shell, cwd }: UseTerminalOptions = {}): UseTermina
       return true;
     });
 
-    // Spawn PTY
-    const ptyOptions = {
-      shell: shell ?? 'pwsh.exe',
-      cwd: cwd ?? '',
-      env: {} as Record<string, string>,
-    };
-
+    // Connect to PTY — either attach to existing (agent-spawned) or create new
     let ptyId: string | null = null;
 
-    window.wmux.pty
-      .create(ptyOptions)
-      .then((id: string) => {
-        ptyId = id;
-        ptyIdRef.current = id;
+    const attachToPty = (id: string) => {
+      ptyId = id;
+      ptyIdRef.current = id;
 
-        // Wire PTY data → xterm
-        const unsubData = window.wmux.pty.onData(id, (data: string) => {
-          terminal.write(data);
-        });
-
-        // Wire PTY exit → inform user
-        const unsubExit = window.wmux.pty.onExit(id, (_code: number) => {
-          terminal.writeln('\r\n\x1b[2m[process exited]\x1b[0m');
-        });
-
-        cleanupFnsRef.current.push(unsubData, unsubExit);
-
-        // Initial resize after PTY is ready
-        fit();
-        const dims = fitAddon.proposeDimensions();
-        if (dims) {
-          window.wmux.pty.resize(id, dims.cols, dims.rows);
-        }
-      })
-      .catch((err: unknown) => {
-        terminal.writeln(`\r\n\x1b[31m[failed to create PTY: ${err}]\x1b[0m`);
+      // Wire PTY data → xterm
+      const unsubData = window.wmux.pty.onData(id, (data: string) => {
+        terminal.write(data);
       });
+
+      // Wire PTY exit → inform user
+      const unsubExit = window.wmux.pty.onExit(id, (_code: number) => {
+        terminal.writeln('\r\n\x1b[2m[process exited]\x1b[0m');
+      });
+
+      cleanupFnsRef.current.push(unsubData, unsubExit);
+
+      // Initial resize after PTY is ready
+      fit();
+      const dims = fitAddon.proposeDimensions();
+      if (dims) {
+        window.wmux.pty.resize(id, dims.cols, dims.rows);
+      }
+    };
+
+    // If surfaceId is given AND a PTY already exists for it (agent spawn), attach to it
+    if (surfaceId && window.wmux.pty.has) {
+      window.wmux.pty.has(surfaceId).then((exists: boolean) => {
+        if (exists) {
+          attachToPty(surfaceId!);
+        } else {
+          // No existing PTY — create a new one
+          window.wmux.pty.create({ shell: shell ?? 'pwsh.exe', cwd: cwd ?? '', env: {} })
+            .then(attachToPty)
+            .catch((err: unknown) => terminal.writeln(`\r\n\x1b[31m[failed to create PTY: ${err}]\x1b[0m`));
+        }
+      });
+    } else {
+      // No surfaceId hint — always create new PTY
+      window.wmux.pty.create({ shell: shell ?? 'pwsh.exe', cwd: cwd ?? '', env: {} })
+        .then(attachToPty)
+        .catch((err: unknown) => terminal.writeln(`\r\n\x1b[31m[failed to create PTY: ${err}]\x1b[0m`));
+    }
 
     // Wire xterm input → PTY
     const dataDisposable = terminal.onData((data: string) => {
