@@ -16,6 +16,19 @@ function getShellIntegrationPath(): string {
   return path.join(__dirname, '../../src/shell-integration');
 }
 
+function getCliPath(): string {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { app } = require('electron') as typeof import('electron');
+    if (app.isPackaged) {
+      return path.join(process.resourcesPath, 'cli', 'wmux.js');
+    }
+  } catch {
+    // Not running in Electron
+  }
+  return path.join(__dirname, '../cli/wmux.js');
+}
+
 function getShellType(shell: string): 'powershell' | 'cmd' | 'wsl' | 'unknown' {
   const lower = shell.toLowerCase();
   if (lower.includes('pwsh') || lower.includes('powershell')) return 'powershell';
@@ -46,6 +59,7 @@ export class PtyManager {
 
     const shellType = getShellType(options.shell);
     const integrationDir = getShellIntegrationPath();
+    const cliPath = getCliPath();
     // Filter out undefined values from process.env before merging
     const processEnvClean = Object.fromEntries(
       Object.entries(process.env).filter((entry): entry is [string, string] => entry[1] !== undefined)
@@ -56,6 +70,7 @@ export class PtyManager {
       WMUX: '1',
       WMUX_SURFACE_ID: id,
       WMUX_PIPE: '\\\\.\\pipe\\wmux',
+      WMUX_CLI: cliPath,
     };
 
     let args: string[] = [];

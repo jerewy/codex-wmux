@@ -82,10 +82,11 @@ export default function WorkspaceRow({
       {/* Title row */}
       <div className="workspace-row__header">
         <span
-          className={`workspace-row__state-dot ${
-            workspace.shellState === 'running' ? 'workspace-row__state-dot--running' : ''
+          className={`workspace-row__state-dot${
+            workspace.shellState === 'running' ? ' workspace-row__state-dot--running' :
+            workspace.shellState === 'idle' ? ' workspace-row__state-dot--idle' : ''
           }`}
-          title={workspace.shellState === 'running' ? 'Command running' : 'Idle'}
+          title={workspace.shellState === 'running' ? 'Command running' : workspace.shellState === 'idle' ? 'Idle' : ''}
         />
         {isRenaming ? (
           <input

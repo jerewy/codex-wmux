@@ -39,12 +39,22 @@ _wmux_precmd() {
     _wmux_report "ports_kick ${WMUX_SURFACE_ID}"
 }
 
+# Report "running" before a command executes (pre-execution hook)
+_wmux_preexec() {
+    local surface_id="${WMUX_SURFACE_ID}"
+    [ -z "$surface_id" ] && return
+    _wmux_report "report_shell_state $surface_id running"
+}
+
 # Install hooks
 if [ -n "$ZSH_VERSION" ]; then
-    # Zsh
+    # Zsh: native preexec + precmd
     autoload -Uz add-zsh-hook
     add-zsh-hook precmd _wmux_precmd
+    add-zsh-hook preexec _wmux_preexec
 elif [ -n "$BASH_VERSION" ]; then
-    # Bash
-    PROMPT_COMMAND="_wmux_precmd${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
+    # Bash: DEBUG trap as preexec, PROMPT_COMMAND as precmd
+    _wmux_bash_preexec_active=0
+    trap '_wmux_bash_preexec_active=1; _wmux_preexec' DEBUG
+    PROMPT_COMMAND="_wmux_precmd; _wmux_bash_preexec_active=0${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
 fi

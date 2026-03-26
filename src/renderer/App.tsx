@@ -79,6 +79,7 @@ export default function App() {
     markAllRead,
     selectSurface,
     setAgentMeta,
+    addNotification,
   } = useStore();
 
   const [focusedPaneId, setFocusedPaneId] = useState<PaneId | null>(null);
@@ -216,9 +217,28 @@ export default function App() {
             case 'clear_pr':
               updateWorkspaceMetadata(ws.id, { prNumber: undefined, prStatus: undefined, prLabel: undefined });
               break;
-            case 'report_shell_state':
-              updateWorkspaceMetadata(ws.id, { shellState: cmd.args?.[0] as any });
+            case 'report_shell_state': {
+              const newState = cmd.args?.[0] as 'idle' | 'running';
+              const prevState = ws.shellState;
+              updateWorkspaceMetadata(ws.id, { shellState: newState });
+
+              // Auto-notify when a command finishes (running → idle)
+              if (prevState === 'running' && newState === 'idle') {
+                // Only notify for non-active workspaces or when window is not focused
+                addNotification({
+                  surfaceId: cmd.surfaceId as SurfaceId,
+                  workspaceId: ws.id,
+                  text: `Command finished in ${ws.title}`,
+                });
+                // Fire OS toast + taskbar flash
+                window.wmux?.notification?.fire({
+                  surfaceId: cmd.surfaceId,
+                  text: `Command finished in ${ws.title}`,
+                  title: 'wmux',
+                });
+              }
               break;
+            }
           }
           break;
         }

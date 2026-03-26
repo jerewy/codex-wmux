@@ -55,7 +55,17 @@ function Report-ShellState {
     }
 }
 
-# Override prompt
+# Report "running" when user executes a command (pre-execution hook)
+if (Get-Module -Name PSReadLine -ErrorAction SilentlyContinue) {
+    Set-PSReadLineKeyHandler -Key Enter -ScriptBlock {
+        # Report running state before the command executes
+        Report-ShellState "running"
+        # Accept the line (execute the command)
+        [Microsoft.PowerShell.PSConsoleReadLine]::AcceptLine()
+    }
+}
+
+# Override prompt (fires AFTER command completes → idle)
 $_wmux_original_prompt = $function:prompt
 function prompt {
     Report-Cwd

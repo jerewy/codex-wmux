@@ -440,19 +440,24 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.15);
   flex-shrink: 0;
   margin-right: 4px;
+  transition: background 0.3s ease;
 }
 
 .workspace-row__state-dot--running {
+  background: #e53935;
+  animation: pulse-dot 1.2s ease-in-out infinite;
+}
+
+.workspace-row__state-dot--idle {
   background: #4caf50;
-  animation: pulse-dot 1.5s ease-in-out infinite;
 }
 
 @keyframes pulse-dot {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  50% { opacity: 0.3; }
 }
 
 .workspace-row__agents {
