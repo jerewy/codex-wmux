@@ -155,36 +155,42 @@ export function ensureClaudeHooks(): void {
 }
 
 /**
- * Configures chrome-devtools-mcp to connect to wmux's CDP proxy on localhost:9222
- * instead of launching its own Chrome instance. Finds the plugin's .mcp.json
- * and adds --browserUrl=http://127.0.0.1:9222 if not already present.
+ * Configures chrome-devtools-mcp to connect to wmux's CDP proxy on localhost:9222.
+ * Disables the plugin version and adds a custom MCP server in settings.json with
+ * --browserUrl pointing to wmux. This is more reliable than modifying the plugin cache.
  */
 export function ensureChromeDevtoolsConfig(): void {
   try {
-    const pluginCacheDir = path.join(os.homedir(), '.claude', 'plugins', 'cache', 'claude-plugins-official', 'chrome-devtools-mcp');
-    if (!fs.existsSync(pluginCacheDir)) return;
+    const settingsPath = getSettingsPath();
+    if (!fs.existsSync(settingsPath)) return;
 
-    // Find the latest version directory
-    const entries = fs.readdirSync(pluginCacheDir);
-    for (const entry of entries) {
-      const mcpJsonPath = path.join(pluginCacheDir, entry, '.mcp.json');
-      if (!fs.existsSync(mcpJsonPath)) continue;
+    const raw = fs.readFileSync(settingsPath, 'utf-8');
+    let settings: any;
+    try { settings = JSON.parse(raw); } catch { return; }
 
-      const raw = fs.readFileSync(mcpJsonPath, 'utf-8');
-      let config: any;
-      try { config = JSON.parse(raw); } catch { continue; }
+    let changed = false;
 
-      const cdp = config['chrome-devtools'];
-      if (!cdp || !Array.isArray(cdp.args)) continue;
+    // Disable the plugin (it launches its own Chrome)
+    if (settings.enabledPlugins?.['chrome-devtools-mcp@claude-plugins-official'] !== false) {
+      if (!settings.enabledPlugins) settings.enabledPlugins = {};
+      settings.enabledPlugins['chrome-devtools-mcp@claude-plugins-official'] = false;
+      changed = true;
+    }
 
-      // Check if already configured for wmux
-      if (cdp.args.some((a: string) => a.includes('9222'))) return;
+    // Add as custom MCP server with --browserUrl
+    if (!settings.mcpServers) settings.mcpServers = {};
+    const existing = settings.mcpServers['chrome-devtools'];
+    if (!existing || !JSON.stringify(existing).includes('9222')) {
+      settings.mcpServers['chrome-devtools'] = {
+        command: 'npx',
+        args: ['-y', 'chrome-devtools-mcp@latest', '--browserUrl=http://127.0.0.1:9222'],
+      };
+      changed = true;
+    }
 
-      // Add --browserUrl to connect to wmux's CDP proxy
-      cdp.args.push('--browserUrl=http://127.0.0.1:9222');
-
-      fs.writeFileSync(mcpJsonPath, JSON.stringify(config, null, 2), 'utf-8');
-      console.log('[wmux] Configured chrome-devtools-mcp to use wmux CDP proxy (localhost:9222)');
+    if (changed) {
+      fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
+      console.log('[wmux] Configured chrome-devtools-mcp as custom MCP server → localhost:9222');
     }
   } catch (err) {
     console.warn('[wmux] Failed to configure chrome-devtools-mcp:', err);
