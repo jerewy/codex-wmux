@@ -289,6 +289,14 @@ app.whenReady().then(() => {
         break;
       }
 
+      case 'hook.event': {
+        BrowserWindow.getAllWindows().forEach(w => {
+          if (!w.isDestroyed()) w.webContents.send(IPC_CHANNELS.HOOK_EVENT, request.params);
+        });
+        respond({ ok: true });
+        break;
+      }
+
       default:
         respondError(-32601, `Method not found: ${request.method}`);
     }

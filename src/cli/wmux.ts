@@ -211,6 +211,17 @@ async function main() {
       case 'log': console.log(JSON.stringify(await sendV2('sidebar.log', { level: args[1], message: args.slice(2).join(' ') }), null, 2)); break;
       case 'sidebar-state': console.log(JSON.stringify(await sendV2('sidebar.get_state'), null, 2)); break;
 
+      case 'hook': {
+        const params: Record<string, string> = {};
+        for (let i = 1; i < args.length; i += 2) {
+          if (args[i] === '--event') params.event = args[i + 1];
+          if (args[i] === '--tool') params.tool = args[i + 1];
+          if (args[i] === '--agent') params.agentId = args[i + 1];
+        }
+        await sendV2('hook.event', params);
+        break;
+      }
+
       default:
         console.error(`Unknown command: ${command}`);
         printUsage();
@@ -241,6 +252,7 @@ Agent:      agent spawn|spawn-batch|status|list|kill
 Markdown:   markdown set <id> --content <text> | --file <path>
 Notify:     notify <text>, list-notifications, clear-notifications
 Sidebar:    set-status, set-progress, log, sidebar-state
+Hook:       hook --event <type> --tool <name> [--agent <id>]
 `);
 }
 

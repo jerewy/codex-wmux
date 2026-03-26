@@ -225,4 +225,6 @@ export const IPC_CHANNELS = {
   CDP_WAIT: 'cdp:wait',
   // Active workspace query (renderer → main)
   GET_ACTIVE_WORKSPACE: 'get-active-workspace',
+  // Hook events (Claude Code hooks → main → renderer)
+  HOOK_EVENT: 'hook:event',
 } as const;

@@ -71,6 +71,13 @@ contextBridge.exposeInMainWorld('wmux', {
   clipboard: {
     pasteImage: () => ipcRenderer.invoke('clipboard:paste-image'),
   },
+  hook: {
+    onEvent: (callback: (event: any) => void) => {
+      const handler = (_event: any, data: any) => callback(data);
+      ipcRenderer.on(IPC_CHANNELS.HOOK_EVENT, handler);
+      return () => ipcRenderer.removeListener(IPC_CHANNELS.HOOK_EVENT, handler);
+    },
+  },
   cdp: {
     attach: (webContentsId: number) => ipcRenderer.send(IPC_CHANNELS.CDP_ATTACH, webContentsId),
     detach: () => ipcRenderer.send(IPC_CHANNELS.CDP_DETACH),
