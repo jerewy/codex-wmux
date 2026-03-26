@@ -2,7 +2,7 @@
   <img src="./docs/assets/wmux_logo.png" alt="wmux logo" width="120" />
 </p>
 <h1 align="center">wmux</h1>
-<p align="center">A Windows terminal with vertical tabs and notifications for AI coding agents</p>
+<p align="center">A Windows terminal multiplexer with vertical tabs, notification center, scriptable browser, and sub-agent spawning for AI coding agents</p>
 
 <p align="center">
   Built on Electron + xterm.js. Inspired by <a href="https://github.com/manaflow-ai/cmux">cmux</a>. 
@@ -23,8 +23,8 @@
 <table>
 <tr>
 <td width="40%" valign="middle">
-<h3>Notification rings</h3>
-Panes get a blue ring and tabs light up when coding agents need your attention. Supports OSC 9/99/777, <code>wmux notify</code> CLI, and idle detection.
+<h3>Notification rings + Notification center</h3>
+Panes get a blue ring and tabs light up when coding agents need your attention. Supports OSC 9/99/777, <code>wmux notify</code> CLI, and idle detection. Click the bell icon in the title bar to see all pending notifications in one place -- jump to the most recent unread with one click or <code>Ctrl+Alt+N</code>.
 </td>
 <td width="60%">
 <img src="./docs/assets/wmux-terminals.png" alt="Terminal panes with notification rings" width="100%" />
@@ -32,8 +32,8 @@ Panes get a blue ring and tabs light up when coding agents need your attention. 
 </tr>
 <tr>
 <td width="40%" valign="middle">
-<h3>Vertical tabs</h3>
-See all your sessions at a glance in a sidebar. Git branch, PR status, working directory, listening ports, and notification text. Double-click to rename. Right-click for colors and workspace management.
+<h3>Vertical + horizontal tabs</h3>
+See all your sessions at a glance in a sidebar. Git branch, PR status, working directory, listening ports, shell state indicator, running agent count, and notification text. Double-click to rename. Right-click for colors and workspace management. Split horizontally and vertically.
 </td>
 <td width="60%">
 <img src="./docs/assets/wmux-sidebar.png" alt="Sidebar with workspace metadata" width="50%" />
@@ -41,11 +41,20 @@ See all your sessions at a glance in a sidebar. Git branch, PR status, working d
 </tr>
 <tr>
 <td width="40%" valign="middle">
-<h3>In-app browser</h3>
-Split a browser alongside your terminals. Scriptable API for clicking, filling forms, evaluating JS, and snapshotting the accessibility tree. Preview localhost next to the terminal that runs it.
+<h3>In-app browser with scriptable API</h3>
+Split a browser alongside your terminals. CDP-powered scriptable API lets AI agents navigate, snapshot the accessibility tree (<code>@e1</code>, <code>@e2</code> refs), click elements, type text, fill forms, take screenshots, and evaluate JS -- all through the pipe API. Ported from <a href="https://github.com/vercel-labs/agent-browser">agent-browser</a>.
 </td>
 <td width="60%">
 <img src="./docs/assets/wmux-browser.png" alt="In-app browser panel" width="100%" />
+</td>
+</tr>
+<tr>
+<td width="40%" valign="middle">
+<h3>Sub-agent terminal spawning</h3>
+When Claude Code spawns sub-agents, each gets its own visible terminal. Agents call <code>wmux agent spawn</code> or <code>agent spawn-batch</code> and wmux distributes them across existing panes with round-robin load balancing. 3 panes, 6 agents = 2 per pane. Agent tabs show a distinct blue icon and label so you always know which terminal belongs to which agent.
+</td>
+<td width="60%">
+<img src="./docs/assets/wmux-terminals.png" alt="Sub-agent terminals distributed across panes" width="100%" />
 </td>
 </tr>
 <tr>
@@ -59,7 +68,7 @@ Interactive onboarding walks you through workspaces, splits, tabs, browser, and 
 </tr>
 </table>
 
-- **Scriptable** -- Named pipe server (`\\.\pipe\wmux`) with a JSON-RPC API. Create workspaces, split panes, send keystrokes, read terminal content, and control the browser programmatically.
+- **Scriptable** -- Named pipe server (`\\.\pipe\wmux`) with a JSON-RPC API. Create workspaces, split panes, send keystrokes, read terminal content, control the browser via CDP, and spawn sub-agent terminals programmatically.
 - **Windows native** -- ConPTY for proper terminal emulation, Windows toast notifications, taskbar flash on alerts, native title bar overlay.
 - **Windows Terminal + Ghostty compatible** -- Import your themes, fonts, and colors from Windows Terminal `settings.json` or `~/.config/ghostty/config`. Ships with 450+ bundled Ghostty themes.
 - **GPU-accelerated** -- xterm.js with WebGL rendering for smooth terminal output at any speed.
@@ -91,11 +100,13 @@ Windows Terminal has tabs but no notification system. You have to manually check
 
 So I built wmux. It is a ground-up Windows reimplementation of cmux, built with Electron, React, xterm.js, and node-pty. Same design philosophy, same socket protocol, same UX patterns -- adapted for Windows with ConPTY, named pipes, PowerShell integration, and native toast notifications.
 
-The sidebar shows exactly what each agent is doing -- the git branch it is on, the PR it opened, the ports it is listening on, and whether it needs your attention. When an agent finishes a task or hits a question, the pane gets a blue notification ring, the sidebar badge increments, and a Windows toast fires. Ctrl+Shift+U jumps to the most recent unread.
+The sidebar shows exactly what each agent is doing -- the git branch it is on, the PR it opened, the ports it is listening on, how many sub-agents it spawned, and whether it needs your attention. When an agent finishes a task or hits a question, the pane gets a blue notification ring, the sidebar badge increments, and a Windows toast fires. Click the bell icon in the title bar or press Ctrl+Alt+N to see all notifications in one place and jump to any of them.
 
 Shell integration scripts inject themselves into PowerShell, CMD, and WSL sessions. They report CWD changes, git branch switches, and PR status back to the sidebar via a named pipe. The main process polls for listening ports and forwards everything to the UI in real time.
 
-The in-app browser is for previewing what your agents build. `localhost:3000` running in one terminal, visible in the browser panel next to it. The browser is scriptable -- AI agents can navigate, click, fill forms, and read the accessibility tree through the socket API.
+The in-app browser is for previewing what your agents build. `localhost:3000` running in one terminal, visible in the browser panel next to it. The browser is fully scriptable through CDP -- AI agents can navigate, snapshot the accessibility tree with numbered refs (`@e1`, `@e2`), click elements, type text, fill forms, take screenshots, and evaluate JavaScript. Inspired by [agent-browser](https://github.com/vercel-labs/agent-browser), but built into the multiplexer so the user watches everything happen live.
+
+When Claude Code spawns sub-agents, each one gets its own visible terminal. The `agent.spawn_batch` command distributes them across existing panes with round-robin load balancing -- 3 panes and 6 agents means 2 per pane. Agent tabs show a distinct blue icon and label so you always know what each agent is working on.
 
 Everything is automatable through the `wmux` CLI or the named pipe directly. The protocol matches cmux, so tools built for one work with the other.
 
@@ -166,6 +177,7 @@ All shortcuts are rebindable via Settings (Ctrl+,).
 
 | Shortcut | Action |
 |----------|--------|
+| Ctrl+Alt+N | Toggle notification panel |
 | Ctrl+Shift+U | Jump to latest unread |
 | Ctrl+Shift+H | Flash focused pane |
 
@@ -208,8 +220,24 @@ wmux split --right                 # Split focused pane
 wmux send "npm test"               # Send text to terminal
 wmux send-key Enter --ctrl         # Send keystroke
 wmux read-screen --lines 50        # Read terminal content
+
+# Browser (CDP-powered)
 wmux browser open http://localhost:3000
-wmux browser snapshot              # Accessibility tree for AI agents
+wmux browser snapshot              # Accessibility tree with @eN refs
+wmux browser click @e5             # Click element by ref
+wmux browser type @e3 "hello"      # Type into input by ref
+wmux browser fill @e3 "value"      # Set input value directly
+wmux browser screenshot            # Base64 PNG screenshot
+wmux browser get-text @e2          # Get element text content
+wmux browser eval "document.title" # Run JavaScript
+
+# Sub-agent spawning
+wmux agent spawn --cmd "claude --resume abc" --label "Research"
+wmux agent spawn-batch --json '[{"cmd":"claude","label":"Agent 1"},{"cmd":"claude","label":"Agent 2"}]'
+wmux agent list                    # List all agents
+wmux agent status <agent-id>       # Check agent status
+wmux agent kill <agent-id>         # Kill an agent
+
 wmux tree                          # Workspace/pane/surface hierarchy
 ```
 
@@ -232,8 +260,25 @@ ping
 {"method": "workspace.list", "params": {}}
 {"method": "surface.send_text", "params": {"id": "surf-...", "text": "npm test\n"}}
 {"method": "surface.read_text", "params": {"id": "surf-...", "lines": 50}}
-{"method": "browser.navigate", "params": {"surfaceId": "surf-...", "url": "http://localhost:3000"}}
-{"method": "browser.snapshot", "params": {"surfaceId": "surf-..."}}
+
+// Browser control (CDP-powered)
+{"method": "browser.navigate", "params": {"url": "http://localhost:3000"}}
+{"method": "browser.snapshot", "params": {}}
+{"method": "browser.click", "params": {"ref": "@e5"}}
+{"method": "browser.type", "params": {"ref": "@e3", "text": "hello"}}
+{"method": "browser.fill", "params": {"ref": "@e3", "value": "hello"}}
+{"method": "browser.screenshot", "params": {"fullPage": true}}
+{"method": "browser.get_text", "params": {"ref": "@e2"}}
+{"method": "browser.eval", "params": {"js": "document.title"}}
+{"method": "browser.batch", "params": {"commands": [...]}}
+
+// Sub-agent spawning
+{"method": "agent.spawn", "params": {"cmd": "claude --resume abc", "label": "Research"}}
+{"method": "agent.spawn_batch", "params": {"agents": [...], "strategy": "distribute"}}
+{"method": "agent.list", "params": {}}
+{"method": "agent.status", "params": {"agentId": "agent-..."}}
+{"method": "agent.kill", "params": {"agentId": "agent-..."}}
+
 {"method": "system.tree", "params": {}}
 ```
 
