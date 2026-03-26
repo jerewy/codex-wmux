@@ -467,3 +467,8 @@
 .workspace-row__agents {
   color: rgba(0, 145, 255, 0.6);
 }
+
+.workspace-row__hook-activity {
+  color: rgba(255, 152, 0, 0.7);
+  font-size: 11px;
+}

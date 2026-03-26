@@ -89,6 +89,7 @@ export default function App() {
   const [browserWidth, setBrowserWidth] = useState(420);
   const [tutorialOpen, setTutorialOpen] = useState(false);
   const [notifPanelOpen, setNotifPanelOpen] = useState(false);
+  const [hookActivity, setHookActivity] = useState<Record<string, { tool: string; count: number; lastSeen: number }>>({});
 
   // Global keyboard listener for command palette toggle (Ctrl+Shift+P)
   useEffect(() => {
@@ -248,6 +249,48 @@ export default function App() {
     return unsub;
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Listen for Claude Code hook events (agent activity)
+  useEffect(() => {
+    if (!window.wmux?.hook?.onEvent) return;
+    const unsub = window.wmux.hook.onEvent((event: any) => {
+      if (!event?.tool) return;
+      setHookActivity(prev => {
+        const key = event.agentId || 'main';
+        const existing = prev[key];
+        return {
+          ...prev,
+          [key]: {
+            tool: event.tool,
+            count: (existing?.count || 0) + 1,
+            lastSeen: Date.now(),
+          },
+        };
+      });
+    });
+    return unsub;
+  }, []);
+
+  // Clear stale activity after 10 seconds of no hooks
+  useEffect(() => {
+    if (Object.keys(hookActivity).length === 0) return;
+    const timer = setInterval(() => {
+      const now = Date.now();
+      setHookActivity(prev => {
+        const next: typeof prev = {};
+        let changed = false;
+        for (const [k, v] of Object.entries(prev)) {
+          if (now - v.lastSeen < 10000) {
+            next[k] = v;
+          } else {
+            changed = true;
+          }
+        }
+        return changed ? next : prev;
+      });
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [hookActivity]);
+
   // Auto-focus first pane whenever the active workspace changes or gains its first pane
   const activeWorkspace = workspaces.find((w) => w.id === activeWorkspaceId) ?? null;
 
@@ -368,6 +411,7 @@ export default function App() {
             onRename={renameWorkspace}
             onReorder={reorderWorkspaces}
             onUpdateMetadata={handleUpdateMetadata}
+            hookActivity={hookActivity}
           />
         )}
 
