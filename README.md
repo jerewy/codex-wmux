@@ -1,8 +1,8 @@
 <h1 align="center">wmux</h1>
-<p align="center">A Windows terminal multiplexer with vertical tabs, notification center, scriptable browser, and sub-agent spawning for AI coding agents</p>
+<p align="center">A visibility layer for Claude Code on Windows — see what your AI agent does in real-time</p>
 
 <p align="center">
-  Built on Electron + xterm.js. Forked from <a href="https://github.com/manaflow-ai/cmux">cmux</a>. 
+  Built on Electron + xterm.js. Forked from <a href="https://github.com/manaflow-ai/cmux">cmux</a>.
 </p>
 
 <p align="center">
@@ -20,26 +20,17 @@
 <table>
 <tr>
 <td width="40%" valign="middle">
-<h3>Notification rings + Notification center</h3>
-Panes get a blue ring and tabs light up when coding agents need your attention. Supports OSC 9/99/777, <code>wmux notify</code> CLI, and idle detection. Click the bell icon in the title bar to see all pending notifications in one place -- jump to the most recent unread with one click or <code>Ctrl+Alt+N</code>.
+<h3>Claude Code awareness</h3>
+On startup, wmux auto-configures Claude Code so it knows how to use the browser panel and send notifications. Every terminal gets a <code>WMUX_CLI</code> env var — Claude Code can control the browser, spawn agents, and notify the user from any project. Zero setup.
 </td>
 <td width="60%">
-<img src="./docs/assets/wmux-terminals.png" alt="Terminal panes with notification rings" width="100%" />
+<img src="./docs/assets/wmux-full.png" alt="Claude Code running inside wmux" width="100%" />
 </td>
 </tr>
 <tr>
 <td width="40%" valign="middle">
-<h3>Vertical + horizontal tabs</h3>
-See all your sessions at a glance in a sidebar. Git branch, PR status, working directory, listening ports, shell state indicator, running agent count, and notification text. Double-click to rename. Right-click for colors and workspace management. Split horizontally and vertically.
-</td>
-<td width="60%">
-<img src="./docs/assets/wmux-sidebar.png" alt="Sidebar with workspace metadata" width="50%" />
-</td>
-</tr>
-<tr>
-<td width="40%" valign="middle">
-<h3>In-app browser with scriptable API</h3>
-Split a browser alongside your terminals. CDP-powered scriptable API lets AI agents navigate, snapshot the accessibility tree (<code>@e1</code>, <code>@e2</code> refs), click elements, type text, fill forms, take screenshots, and evaluate JS -- all through the pipe API. Ported from <a href="https://github.com/vercel-labs/agent-browser">agent-browser</a>.
+<h3>Live browser visibility</h3>
+When Claude Code browses the web, the user watches it happen in real-time in the browser panel. Navigate, click, type, fill forms — every action is visible. CDP-powered scriptable API with accessibility tree snapshots (<code>@e1</code>, <code>@e2</code> refs). Ported from <a href="https://github.com/vercel-labs/agent-browser">agent-browser</a>.
 </td>
 <td width="60%">
 <img src="./docs/assets/wmux-browser.png" alt="In-app browser panel" width="100%" />
@@ -47,11 +38,47 @@ Split a browser alongside your terminals. CDP-powered scriptable API lets AI age
 </tr>
 <tr>
 <td width="40%" valign="middle">
-<h3>Sub-agent terminal spawning</h3>
-When Claude Code spawns sub-agents, each gets its own visible terminal. Agents call <code>wmux agent spawn</code> or <code>agent spawn-batch</code> and wmux distributes them across existing panes with round-robin load balancing. 3 panes, 6 agents = 2 per pane. Agent tabs show a distinct blue icon and label so you always know which terminal belongs to which agent.
+<h3>Live agent visibility</h3>
+When Claude Code spawns sub-agents, each gets its own visible terminal tab with real-time output. <code>wmux agent spawn-batch</code> distributes them across panes with round-robin load balancing. 3 panes, 6 agents = 2 per pane. Agent tabs show a distinct blue icon and label.
 </td>
 <td width="60%">
 <img src="./docs/assets/wmux-terminals.png" alt="Sub-agent terminals distributed across panes" width="100%" />
+</td>
+</tr>
+<tr>
+<td width="40%" valign="middle">
+<h3>Activity indicators</h3>
+Sidebar dots show what Claude Code is doing at a glance. <b>Orange pulsing</b> = working. <b>Green</b> = done. <b>Red</b> = interrupted (Ctrl+C). Auto-notifications fire when a command finishes or is interrupted — in-app notification + Windows toast + taskbar flash.
+</td>
+<td width="60%">
+<img src="./docs/assets/wmux-sidebar.png" alt="Sidebar with activity dots" width="50%" />
+</td>
+</tr>
+<tr>
+<td width="40%" valign="middle">
+<h3>Notification center</h3>
+Panes get a blue ring and tabs light up when agents need your attention. Supports OSC 9/99/777, <code>wmux notify</code> CLI, and idle detection. Click the bell icon to see all pending notifications — jump to any with one click or <code>Ctrl+Alt+N</code>.
+</td>
+<td width="60%">
+<img src="./docs/assets/wmux-terminals.png" alt="Terminal panes with notification rings" width="100%" />
+</td>
+</tr>
+<tr>
+<td width="40%" valign="middle">
+<h3>Clipboard image paste</h3>
+Copy a screenshot (Win+Shift+S, Print Screen, etc.) and press Ctrl+V in a wmux terminal. The image is saved to a temp file and the path is injected into the terminal. Claude Code can then read the image — like pasting on claude.ai.
+</td>
+<td width="60%">
+<img src="./docs/assets/wmux-full.png" alt="Screenshot paste" width="100%" />
+</td>
+</tr>
+<tr>
+<td width="40%" valign="middle">
+<h3>Vertical + horizontal splits</h3>
+See all your sessions at a glance in a sidebar. Git branch, PR status, working directory, listening ports, agent count, and notification text. Double-click to rename. Right-click for colors and workspace management. Split horizontally and vertically.
+</td>
+<td width="60%">
+<img src="./docs/assets/wmux-sidebar.png" alt="Sidebar with workspace metadata" width="50%" />
 </td>
 </tr>
 <tr>
@@ -69,23 +96,6 @@ Interactive onboarding walks you through workspaces, splits, tabs, browser, and 
 - **Windows native** -- ConPTY for proper terminal emulation, Windows toast notifications, taskbar flash on alerts, native title bar overlay.
 - **Windows Terminal + Ghostty compatible** -- Import your themes, fonts, and colors from Windows Terminal `settings.json` or `~/.config/ghostty/config`. Ships with 450+ bundled Ghostty themes.
 - **GPU-accelerated** -- xterm.js with WebGL rendering for smooth terminal output at any speed.
-
-## What's New in v0.3.0
-
-### Claude Code Awareness
-- **Auto-configured Claude Code**: On startup, wmux injects instructions into `~/.claude/CLAUDE.md` so Claude Code knows how to use the browser panel and send notifications. No setup required.
-- **`WMUX_CLI` env var**: Every terminal gets a `WMUX_CLI` variable pointing to the CLI, so Claude Code can call `node "$WMUX_CLI" browser open https://...` from any project directory.
-- **Browser as visibility layer**: When Claude Code browses the web through wmux, the user watches navigation, clicks, and form fills happen live in the browser panel.
-
-### Live Agent Visibility
-- **Agent tabs show live output**: When sub-agents are spawned via `wmux agent spawn`, each agent gets its own terminal tab with real-time output visible to the user.
-
-### Activity Indicators
-- **3-state sidebar dots**: Orange pulsing = working, Green = done, Red = interrupted (Ctrl+C).
-- **Auto-notifications**: When a command finishes or is interrupted, wmux fires an in-app notification + Windows toast + taskbar flash.
-
-### Clipboard Image Paste
-- **Screenshot paste**: Copy a screenshot (Win+Shift+S, Print Screen, etc.), press Ctrl+V in a wmux terminal, and the image is saved to a temp file with the path injected into the terminal. Claude Code can then read the image.
 
 ## Install
 
@@ -109,15 +119,13 @@ I run a lot of Claude Code sessions in parallel. On macOS there is [cmux](https:
 
 Windows Terminal has tabs but no notification system. You have to manually check each tab to see if an agent finished or is waiting for input. tmux works in WSL but loses all Windows integration. Electron terminals exist but none focus on the AI agent workflow.
 
-So I built wmux. It is a ground-up Windows reimplementation of cmux, built with Electron, React, xterm.js, and node-pty. Same design philosophy, same socket protocol, same UX patterns -- adapted for Windows with ConPTY, named pipes, PowerShell integration, and native toast notifications.
+So I built wmux — a visibility layer for AI coding agents. It doesn't replace Claude Code or change how it works. It lets you **see** what Claude Code is doing. When Claude browses the web, you watch it in the browser panel. When Claude spawns sub-agents, each one gets its own visible terminal. When a command finishes or is interrupted, the sidebar dot changes color and you get a notification.
 
-The sidebar shows exactly what each agent is doing -- the git branch it is on, the PR it opened, the ports it is listening on, how many sub-agents it spawned, and whether it needs your attention. When an agent finishes a task or hits a question, the pane gets a blue notification ring, the sidebar badge increments, and a Windows toast fires. Click the bell icon in the title bar or press Ctrl+Alt+N to see all notifications in one place and jump to any of them.
+The sidebar shows exactly what each agent is doing -- the git branch it is on, the PR it opened, the ports it is listening on, how many sub-agents it spawned, and whether it needs your attention. When an agent finishes a task or hits a question, the pane gets a blue notification ring, the sidebar badge increments, and a Windows toast fires.
 
-Shell integration scripts inject themselves into PowerShell, CMD, and WSL sessions. They report CWD changes, git branch switches, and PR status back to the sidebar via a named pipe. The main process polls for listening ports and forwards everything to the UI in real time.
+Shell integration scripts inject themselves into PowerShell, CMD, and WSL sessions. They report CWD changes, git branch switches, shell state, and PR status back to the sidebar via a named pipe in real time.
 
-The in-app browser is for previewing what your agents build. `localhost:3000` running in one terminal, visible in the browser panel next to it. The browser is fully scriptable through CDP -- AI agents can navigate, snapshot the accessibility tree with numbered refs (`@e1`, `@e2`), click elements, type text, fill forms, take screenshots, and evaluate JavaScript. Inspired by [agent-browser](https://github.com/vercel-labs/agent-browser), but built into the multiplexer so the user watches everything happen live.
-
-When Claude Code spawns sub-agents, each one gets its own visible terminal. The `agent.spawn_batch` command distributes them across existing panes with round-robin load balancing -- 3 panes and 6 agents means 2 per pane. Agent tabs show a distinct blue icon and label so you always know what each agent is working on.
+On first launch, wmux auto-configures Claude Code by injecting instructions into `~/.claude/CLAUDE.md`. Every terminal gets a `WMUX_CLI` env var so Claude Code can use the browser and notifications from any project directory. No API keys needed — everything runs through the user's existing Claude Code session.
 
 Everything is automatable through the `wmux` CLI or the named pipe directly. The protocol matches cmux, so tools built for one work with the other.
 
@@ -125,9 +133,9 @@ Everything is automatable through the `wmux` CLI or the named pipe directly. The
 
 wmux automatically injects integration scripts into your shells:
 
-- **PowerShell** -- Overrides the `prompt` function. Reports CWD, git branch, dirty state, and shell idle/running status via `NamedPipeClientStream`. Background job polls `gh pr view` every 45 seconds.
+- **PowerShell** -- Overrides the `prompt` function. Reports CWD, git branch, dirty state, and shell state (working/done/interrupted) via `NamedPipeClientStream`. Preexec hook via PSReadLine detects when commands start. Background job polls `gh pr view` every 45 seconds.
 - **CMD** -- Embeds OSC 9 escape sequences in the `PROMPT` variable for CWD reporting. Git branch detected via filesystem watcher on `.git/HEAD`.
-- **WSL (Bash/Zsh)** -- `PROMPT_COMMAND` / `precmd` hooks, near-identical to cmux's integration. Communicates via temp file bridge.
+- **WSL (Bash/Zsh)** -- `PROMPT_COMMAND` / `precmd` + `preexec` hooks. Detects interrupts via exit code 130. Communicates via temp file bridge.
 
 Environment variables available in all shells:
 
@@ -135,10 +143,8 @@ Environment variables available in all shells:
 |----------|-------------|
 | `WMUX` | Always `1` inside wmux |
 | `WMUX_CLI` | Path to the wmux CLI script (use with `node "$WMUX_CLI"`) |
-| `WMUX_WORKSPACE_ID` | Current workspace ID |
-| `WMUX_PANE_ID` | Current pane ID |
 | `WMUX_SURFACE_ID` | Current surface ID |
-| `WMUX_PIPE` | Named pipe path |
+| `WMUX_PIPE` | Named pipe path (`\\.\pipe\wmux`) |
 
 ## Keyboard Shortcuts
 
@@ -207,6 +213,7 @@ All shortcuts are rebindable via Settings (Ctrl+,).
 |----------|--------|
 | Ctrl+Shift+C | Copy |
 | Ctrl+Shift+V | Paste |
+| Ctrl+V | Paste (text or screenshot image) |
 | Ctrl+C | Copy (with selection) / interrupt (without) |
 | Ctrl+= / Ctrl+- | Increase / decrease font size |
 | Ctrl+0 | Reset font size |
@@ -318,7 +325,7 @@ Import either via Settings > Terminal > Import. Extracts font family, font size,
 
 ## Architecture
 
-Two-process Electron model. Main process manages PTY spawning (node-pty/ConPTY), named pipe server, port scanning, git/PR polling, notifications, session persistence, and multi-window lifecycle. Renderer process runs React/Zustand with xterm.js (WebGL), recursive split pane layout, and the sidebar.
+Two-process Electron model. Main process manages PTY spawning (node-pty/ConPTY), named pipe server, CDP browser bridge, port scanning, git/PR polling, notifications, Claude Code context injection, session persistence, and multi-window lifecycle. Renderer process runs React/Zustand with xterm.js (WebGL), recursive split pane layout, and the sidebar.
 
 ```
 src/
