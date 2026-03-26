@@ -34,6 +34,7 @@ export default function BrowserPane({ initialUrl = 'https://github.com/amirlehma
   const goForward = useCallback(() => webviewRef.current?.goForward(), []);
   const reload = useCallback(() => webviewRef.current?.reload(), []);
   const stop = useCallback(() => webviewRef.current?.stop(), []);
+  const openDevTools = useCallback(() => webviewRef.current?.openDevTools(), []);
 
   useEffect(() => {
     const wv = webviewRef.current;
@@ -91,6 +92,7 @@ export default function BrowserPane({ initialUrl = 'https://github.com/amirlehma
         onForward={goForward}
         onReload={reload}
         onStop={stop}
+        onDevTools={openDevTools}
       />
       {/* @ts-ignore — webview is an Electron-specific HTML element */}
       <webview

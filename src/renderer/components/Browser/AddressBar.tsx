@@ -10,6 +10,7 @@ interface AddressBarProps {
   onForward: () => void;
   onReload: () => void;
   onStop: () => void;
+  onDevTools?: () => void;
 }
 
 export default function AddressBar({
@@ -22,6 +23,7 @@ export default function AddressBar({
   onForward,
   onReload,
   onStop,
+  onDevTools,
 }: AddressBarProps) {
   const [editingUrl, setEditingUrl] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -88,6 +90,16 @@ export default function AddressBar({
       >
         {isLoading ? '\u2715' : '\u21BB'}
       </button>
+      {onDevTools && (
+        <button
+          className="browser-address-bar__btn"
+          onClick={onDevTools}
+          title="Open DevTools for this page"
+          aria-label="DevTools"
+        >
+          &#9881;
+        </button>
+      )}
       <input
         ref={inputRef}
         className="browser-address-bar__url"
