@@ -8,13 +8,25 @@ You are running inside **wmux**, a terminal multiplexer with an embedded browser
 
 wmux gives you a real browser panel and visible agent terminals. **The user expects to SEE your actions in real-time.** You MUST use the wmux CLI instead of your built-in tools for these cases:
 
-### Web browsing: USE wmux browser, NOT built-in tools
-**DO NOT use** Firecrawl, WebFetch, WebSearch, Playwright, or any other web/browsing tool. They are invisible to the user. Use the wmux browser commands instead — the user watches you navigate, click, and read pages live.
+### Web browsing: USE wmux browse, NOT built-in tools
+**DO NOT use** Firecrawl, WebFetch, WebSearch, Playwright, or any other web/browsing tool. They are invisible to the user. Use the wmux **browser agent** instead — it autonomously browses the web and the user watches everything in real-time.
 
-- Search the web → `browser open https://www.google.com/search?q=...` then read results
-- Look up something → navigate to the relevant site in the wmux browser
-- Check a URL → `browser open <url>` then `browser snapshot`
-- Interact with a web page → use snapshot + click/type/fill
+For ANY web task (search, lookup, check a URL, interact with a page):
+```bash
+node "$WMUX_CLI" browse <describe what you need>
+```
+
+Examples:
+```bash
+node "$WMUX_CLI" browse find the best sushi restaurants in Paris with good reviews
+node "$WMUX_CLI" browse go to github.com/amirlehmam/wmux and check the latest issues
+node "$WMUX_CLI" browse check if localhost:3000 is working and describe what you see
+```
+
+The browser agent will autonomously navigate, click, read, and return results. The user sees every action in the browser panel.
+
+For low-level browser control (if you need precise actions), you can still use individual commands:
+- `browser open <url>`, `browser snapshot`, `browser click @eN`, `browser type @eN text`, etc.
 
 ### Sub-agents: USE wmux agent spawn, NOT the built-in Agent tool
 **DO NOT use** the built-in Agent tool to spawn sub-agents. It runs them invisibly in the background. Use `wmux agent spawn` instead — this creates **visible terminal tabs** in wmux's panes where the user can watch each agent work.
