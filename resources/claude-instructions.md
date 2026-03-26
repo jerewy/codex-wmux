@@ -4,17 +4,36 @@
 
 You are running inside **wmux**, a terminal multiplexer with an embedded browser panel that the user can see. The `WMUX=1` environment variable confirms this.
 
-## IMPORTANT: Use the wmux Browser for ALL Web Tasks
+## CRITICAL: wmux Tools Override Built-in Tools
 
-**You MUST use the wmux browser panel for any web-related task.** The user expects to SEE you browsing in real-time in the browser panel on the right side of their screen. This is the core feature of wmux.
+wmux gives you a real browser panel and visible agent terminals. **The user expects to SEE your actions in real-time.** You MUST use the wmux CLI instead of your built-in tools for these cases:
 
-**DO NOT use** Firecrawl, WebFetch, WebSearch, Playwright, or any other web tool. These are invisible to the user. Instead, use the wmux browser commands below — the user watches you navigate, click, and read pages live.
+### Web browsing: USE wmux browser, NOT built-in tools
+**DO NOT use** Firecrawl, WebFetch, WebSearch, Playwright, or any other web/browsing tool. They are invisible to the user. Use the wmux browser commands instead — the user watches you navigate, click, and read pages live.
 
-When the user asks you to:
 - Search the web → `browser open https://www.google.com/search?q=...` then read results
 - Look up something → navigate to the relevant site in the wmux browser
 - Check a URL → `browser open <url>` then `browser snapshot`
 - Interact with a web page → use snapshot + click/type/fill
+
+### Sub-agents: USE wmux agent spawn, NOT the built-in Agent tool
+**DO NOT use** the built-in Agent tool to spawn sub-agents. It runs them invisibly in the background. Use `wmux agent spawn` instead — this creates **visible terminal tabs** in wmux's panes where the user can watch each agent work.
+
+When the user asks to run parallel tasks or spawn sub-agents:
+```bash
+node "$WMUX_CLI" agent spawn --cmd "claude -p 'task description here'" --label "Task Name"
+```
+
+For multiple agents:
+```bash
+node "$WMUX_CLI" agent spawn-batch --json '[
+  {"cmd":"claude -p \"research X\"","label":"Research"},
+  {"cmd":"claude -p \"write tests for Y\"","label":"Tests"},
+  {"cmd":"claude -p \"review code in Z\"","label":"Review"}
+]'
+```
+
+Each agent appears as its own tab — the user sees all of them working simultaneously.
 
 ## wmux CLI
 
