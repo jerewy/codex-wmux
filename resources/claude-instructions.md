@@ -57,6 +57,27 @@ node "$WMUX_CLI" browser get-text
 Refs (`@e1`, `@e2`, ...) are ephemeral — re-snapshot after any page change.
 If the browser panel is closed, tell the user to open it with `Ctrl+Shift+I`.
 
+## Sub-Agents: Use wmux agent spawn
+
+**When you need to run parallel tasks or sub-agents, use `wmux agent spawn` instead of the built-in Agent tool.** The built-in Agent tool runs invisibly in memory — the user can't see what agents are doing. `wmux agent spawn` creates visible terminal tabs so the user watches each agent work in real-time.
+
+```bash
+# Single agent
+node "$WMUX_CLI" agent spawn --cmd "claude -p 'describe the task here'" --label "Task Name"
+
+# Multiple agents distributed across panes
+node "$WMUX_CLI" agent spawn-batch --json '[
+  {"cmd":"claude -p \"research topic X\"","label":"Research"},
+  {"cmd":"claude -p \"write tests for Y\"","label":"Tests"},
+  {"cmd":"claude -p \"review code in Z\"","label":"Review"}
+]'
+
+# Monitor
+node "$WMUX_CLI" agent list
+node "$WMUX_CLI" agent status <agentId>
+node "$WMUX_CLI" agent kill <agentId>
+```
+
 ## Notifications & Status
 
 ```bash
