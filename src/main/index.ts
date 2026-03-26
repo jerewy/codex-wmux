@@ -113,7 +113,7 @@ app.whenReady().then(() => {
   pipeServer.on('v2', (request, respond, respondError) => {
     switch (request.method) {
       case 'system.identify':
-        respond({ name: 'wmux', version: '0.1.0', platform: 'win32' });
+        respond({ name: 'wmux', version: '0.2.0', platform: 'win32' });
         break;
       case 'system.capabilities':
         respond({ protocols: ['v1', 'v2'], features: ['workspaces', 'splits', 'notifications'] });
@@ -166,7 +166,7 @@ app.whenReady().then(() => {
         (async () => {
           for (const cmd of request.params.commands || []) {
             try {
-              const handler: any = {
+              const handlers: Record<string, () => Promise<any>> = {
                 'browser.navigate': () => cdpBridge.navigate(cmd.params?.url, cmd.params?.timeout).then(() => ({ ok: true })),
                 'browser.snapshot': () => cdpBridge.snapshot(),
                 'browser.click': () => cdpBridge.click(cmd.params?.ref).then(() => ({ ok: true })),
@@ -176,7 +176,8 @@ app.whenReady().then(() => {
                 'browser.get_text': () => cdpBridge.getText(cmd.params?.ref).then((t: string) => ({ text: t })),
                 'browser.eval': () => cdpBridge.evaluate(cmd.params?.js).then((r: any) => ({ result: r })),
                 'browser.wait': () => cdpBridge.wait(cmd.params?.ref, cmd.params?.timeout).then(() => ({ ok: true })),
-              }[cmd.method];
+              };
+              const handler = handlers[cmd.method];
               if (!handler) { results.push({ error: { code: -32601, message: `Unknown: ${cmd.method}` } }); break; }
               results.push({ result: await handler() });
             } catch (err: any) {
