@@ -18,7 +18,7 @@ interface WorkspaceRowProps {
   onDragEnd?: (e: React.DragEvent) => void;
   isDragOver?: boolean;
   agentCount?: number;
-  hookActivity?: Record<string, { tool: string; count: number; lastSeen: number }>;
+  hookActivity?: { agents: number; tools: number; lastSeen: number };
 }
 
 export default function WorkspaceRow({
@@ -155,7 +155,7 @@ export default function WorkspaceRow({
         workspace.prNumber != null ||
         portsStr ||
         agentCount > 0 ||
-        (hookActivity && Object.keys(hookActivity).length > 0)) && (
+        hookActivity) && (
         <div className="workspace-row__metadata">
           {/* Notification text */}
           {workspace.notificationText && (
@@ -210,11 +210,13 @@ export default function WorkspaceRow({
           )}
 
           {/* Hook activity */}
-          {hookActivity && Object.keys(hookActivity).length > 0 && (
+          {hookActivity && (
             <div className="workspace-row__meta-line workspace-row__hook-activity">
-              {Object.values(hookActivity).some(a => Date.now() - a.lastSeen < 5000)
-                ? `${Object.keys(hookActivity).length} agent${Object.keys(hookActivity).length > 1 ? 's' : ''} working...`
-                : 'Agents done'}
+              {Date.now() - hookActivity.lastSeen < 5000
+                ? `${hookActivity.agents > 0 ? hookActivity.agents + ' agent' + (hookActivity.agents > 1 ? 's' : '') + ' · ' : ''}${hookActivity.tools} tool calls`
+                : hookActivity.agents > 0
+                  ? `${hookActivity.agents} agent${hookActivity.agents > 1 ? 's' : ''} done`
+                  : 'Done'}
             </div>
           )}
         </div>

@@ -89,7 +89,8 @@ export default function App() {
   const [browserWidth, setBrowserWidth] = useState(420);
   const [tutorialOpen, setTutorialOpen] = useState(false);
   const [notifPanelOpen, setNotifPanelOpen] = useState(false);
-  const [hookActivity, setHookActivity] = useState<Record<string, { tool: string; count: number; lastSeen: number }>>({});
+  // Per-workspace hook activity: workspaceId → { agents: count, tools: count, lastSeen }
+  const [hookActivity, setHookActivity] = useState<Record<string, { agents: number; tools: number; lastSeen: number }>>({});
 
   // Global keyboard listener for command palette toggle (Ctrl+Shift+P)
   useEffect(() => {
@@ -249,19 +250,20 @@ export default function App() {
     return unsub;
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Listen for Claude Code hook events (agent activity)
+  // Listen for Claude Code hook events — tie to active workspace
   useEffect(() => {
     if (!window.wmux?.hook?.onEvent) return;
     const unsub = window.wmux.hook.onEvent((event: any) => {
       if (!event?.tool) return;
+      const wsId = useStore.getState().activeWorkspaceId;
+      if (!wsId) return;
       setHookActivity(prev => {
-        const key = event.agentId || 'main';
-        const existing = prev[key];
+        const existing = prev[wsId] || { agents: 0, tools: 0, lastSeen: 0 };
         return {
           ...prev,
-          [key]: {
-            tool: event.tool,
-            count: (existing?.count || 0) + 1,
+          [wsId]: {
+            agents: event.tool === 'Agent' ? existing.agents + 1 : existing.agents,
+            tools: existing.tools + 1,
             lastSeen: Date.now(),
           },
         };

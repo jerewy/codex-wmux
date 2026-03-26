@@ -22,7 +22,7 @@ interface SidebarProps {
   onRename: (id: WorkspaceId, title: string) => void;
   onReorder: (ids: WorkspaceId[]) => void;
   onUpdateMetadata: (id: WorkspaceId, partial: Partial<WorkspaceInfo>) => void;
-  hookActivity?: Record<string, { tool: string; count: number; lastSeen: number }>;
+  hookActivity?: Record<string, { agents: number; tools: number; lastSeen: number }>;
 }
 
 export default function Sidebar({
@@ -222,7 +222,7 @@ export default function Sidebar({
             onDragEnd={handleDragEnd}
             isDragOver={dragOverId === ws.id}
             agentCount={agentCounts[ws.id] || 0}
-            hookActivity={hookActivity}
+            hookActivity={hookActivity?.[ws.id]}
           />
         ))}
       </div>
