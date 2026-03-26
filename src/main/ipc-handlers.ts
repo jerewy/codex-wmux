@@ -10,6 +10,7 @@ import { getDefaultTheme, loadBundledThemes } from './theme-loader';
 import { parseWindowsTerminalConfig, parseGhosttyConfig } from './config-loader';
 import { WindowManager } from './window-manager';
 import { CDPBridge } from './cdp-bridge';
+import { CDPProxy } from './cdp-proxy';
 import { AgentManager } from './agent-manager';
 
 const ptyManager = new PtyManager();
@@ -17,7 +18,7 @@ const notificationManager = new NotificationManager();
 const cdpBridge = new CDPBridge();
 const agentManager = new AgentManager(ptyManager);
 
-export function registerIpcHandlers(windowManager: WindowManager): void {
+export function registerIpcHandlers(windowManager: WindowManager, cdpProxyInstance?: CDPProxy): void {
   // Toggle DevTools for the renderer window
   ipcMain.on('toggle-devtools', (event) => {
     const win = BrowserWindow.fromWebContents(event.sender);
@@ -121,9 +122,11 @@ export function registerIpcHandlers(windowManager: WindowManager): void {
 
   ipcMain.on(IPC_CHANNELS.CDP_ATTACH, (_event, webContentsId: number) => {
     cdpBridge.attach(webContentsId);
+    cdpProxyInstance?.setWebContentsId(webContentsId);
   });
   ipcMain.on(IPC_CHANNELS.CDP_DETACH, () => {
     cdpBridge.detach();
+    cdpProxyInstance?.setWebContentsId(null);
   });
 
   ipcMain.handle(IPC_CHANNELS.AGENT_LIST, async (_event, workspaceId?: string) => {

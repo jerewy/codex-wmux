@@ -5,6 +5,7 @@ import { PipeServer } from './pipe-server';
 import { PortScanner } from './port-scanner';
 import { GitPoller } from './git-poller';
 import { PrPoller } from './pr-poller';
+import { CDPProxy } from './cdp-proxy';
 import { IPC_CHANNELS } from '../shared/types';
 import { loadSession, saveSession, SessionData } from './session-persistence';
 import { WindowManager } from './window-manager';
@@ -16,6 +17,7 @@ const pipeServer = new PipeServer();
 const portScanner = new PortScanner();
 const gitPoller = new GitPoller();
 const prPoller = new PrPoller();
+const cdpProxy = new CDPProxy();
 
 // Auto-save debounce handle
 let autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -45,7 +47,7 @@ app.whenReady().then(() => {
     scheduleAutoSave();
   });
 
-  registerIpcHandlers(windowManager);
+  registerIpcHandlers(windowManager, cdpProxy);
 
   // Attempt to restore last saved window bounds
   const savedSession = loadSession();
@@ -62,6 +64,7 @@ app.whenReady().then(() => {
 
   // Start named pipe server
   pipeServer.start();
+  cdpProxy.start();
 
   portScanner.onResults((portsByPid) => {
     BrowserWindow.getAllWindows().forEach(win => {
@@ -308,6 +311,7 @@ app.on('before-quit', () => {
 
 app.on('will-quit', () => {
   pipeServer.stop();
+  cdpProxy.stop();
   portScanner.stop();
   gitPoller.unwatchAll();
   prPoller.stopAll();
