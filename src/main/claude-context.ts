@@ -89,3 +89,52 @@ export function ensureClaudeContext(): void {
     console.warn('[wmux] Failed to update Claude context:', err);
   }
 }
+
+const HOOK_MARKER = 'WMUX_CLI';
+
+function getSettingsPath(): string {
+  return path.join(os.homedir(), '.claude', 'settings.json');
+}
+
+/**
+ * Ensures Claude Code's ~/.claude/settings.json has a PostToolUse hook
+ * that notifies wmux. Identified by WMUX_CLI in the command string.
+ * Never touches other hook entries.
+ */
+export function ensureClaudeHooks(): void {
+  try {
+    const settingsPath = getSettingsPath();
+    if (!fs.existsSync(settingsPath)) return;
+
+    const raw = fs.readFileSync(settingsPath, 'utf-8');
+    let settings: any;
+    try { settings = JSON.parse(raw); } catch { return; }
+
+    const wmuxHookCommand = 'node "$WMUX_CLI" hook --event post_tool --tool $CLAUDE_TOOL_USE_NAME 2>/dev/null || true';
+
+    if (!settings.hooks) settings.hooks = {};
+    if (!Array.isArray(settings.hooks.PostToolUse)) settings.hooks.PostToolUse = [];
+
+    const hooks: any[] = settings.hooks.PostToolUse;
+    const existingIdx = hooks.findIndex((h: any) => h.command?.includes(HOOK_MARKER));
+
+    const wmuxHook = {
+      matcher: '',
+      command: wmuxHookCommand,
+    };
+
+    if (existingIdx === -1) {
+      hooks.push(wmuxHook);
+      console.log('[wmux] Added PostToolUse hook to ~/.claude/settings.json');
+    } else if (hooks[existingIdx].command !== wmuxHookCommand) {
+      hooks[existingIdx] = wmuxHook;
+      console.log('[wmux] Updated PostToolUse hook in ~/.claude/settings.json');
+    } else {
+      return;
+    }
+
+    fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
+  } catch (err) {
+    console.warn('[wmux] Failed to update Claude hooks:', err);
+  }
+}
