@@ -2,7 +2,19 @@
 
 # wmux Environment
 
-You are running inside **wmux**, a terminal multiplexer with an embedded browser panel and sub-agent support. You can control the browser and spawn agent terminals using the `wmux` CLI.
+You are running inside **wmux**, a terminal multiplexer with an embedded browser panel that the user can see. The `WMUX=1` environment variable confirms this.
+
+## IMPORTANT: Use the wmux Browser for ALL Web Tasks
+
+**You MUST use the wmux browser panel for any web-related task.** The user expects to SEE you browsing in real-time in the browser panel on the right side of their screen. This is the core feature of wmux.
+
+**DO NOT use** Firecrawl, WebFetch, WebSearch, Playwright, or any other web tool. These are invisible to the user. Instead, use the wmux browser commands below — the user watches you navigate, click, and read pages live.
+
+When the user asks you to:
+- Search the web → `browser open https://www.google.com/search?q=...` then read results
+- Look up something → navigate to the relevant site in the wmux browser
+- Check a URL → `browser open <url>` then `browser snapshot`
+- Interact with a web page → use snapshot + click/type/fill
 
 ## wmux CLI
 
@@ -10,37 +22,69 @@ You are running inside **wmux**, a terminal multiplexer with an embedded browser
 node "$WMUX_CLI" <command> [args]
 ```
 
-The `WMUX_CLI` env var points to the CLI script. You can verify you're in wmux by checking `WMUX=1`.
+The `WMUX_CLI` env var points to the CLI script.
 
-## Browser Control
+## Browser Commands
 
-wmux has a browser panel on the right side. You can control it — the user sees every action in real-time.
+The browser panel is on the right side of the wmux window. Every action you take is visible to the user in real-time.
 
 **Always snapshot first to get element refs, then interact.**
 
-| Command | Description |
-|---------|-------------|
-| `browser open <url>` | Navigate to a URL |
-| `browser snapshot` | Get accessibility tree with @eN refs |
-| `browser click @eN` | Click an element by ref |
-| `browser type @eN <text>` | Type into an element (keystrokes) |
-| `browser fill @eN <value>` | Set input value directly |
-| `browser get-text` | Get page text (or `get-text @eN` for element) |
-| `browser screenshot` | Capture screenshot (add `--full` for full page) |
-| `browser eval <js>` | Run JavaScript in the page |
-| `browser wait @eN` | Wait for element to appear |
-| `browser back/forward/reload` | Navigation |
+```bash
+# Navigate to a URL
+node "$WMUX_CLI" browser open <url>
+
+# Get accessibility tree with @eN refs (MUST do before clicking/typing)
+node "$WMUX_CLI" browser snapshot
+
+# Interact with elements by ref
+node "$WMUX_CLI" browser click @eN
+node "$WMUX_CLI" browser type @eN <text>
+node "$WMUX_CLI" browser fill @eN <value>
+
+# Read content
+node "$WMUX_CLI" browser get-text
+node "$WMUX_CLI" browser get-text @eN
+
+# Screenshot
+node "$WMUX_CLI" browser screenshot
+
+# Run JavaScript
+node "$WMUX_CLI" browser eval <js>
+
+# Wait for element
+node "$WMUX_CLI" browser wait @eN
+
+# Navigation
+node "$WMUX_CLI" browser back
+node "$WMUX_CLI" browser forward
+node "$WMUX_CLI" browser reload
+```
 
 ### Browser Workflow
 
-1. `browser open <url>` — navigate
-2. `browser snapshot` — get accessibility tree
+1. `browser open <url>` — navigate (user sees the page load)
+2. `browser snapshot` — get accessibility tree with @eN refs
 3. Find the element ref you need in the tree
-4. `browser click/type/fill @eN` — interact
+4. `browser click/type/fill @eN` — interact (user sees the action)
 5. `browser snapshot` again after mutations (refs expire on page change)
+6. Repeat as needed
 
 Refs (`@e1`, `@e2`, ...) are ephemeral — always re-snapshot after any page change.
-If the browser panel is closed, ask the user to open it with `Ctrl+Shift+I`.
+If the browser panel is closed, tell the user to open it with `Ctrl+Shift+I`.
+
+### Web Search Example
+
+When the user asks to search the web:
+```bash
+node "$WMUX_CLI" browser open "https://www.google.com/search?q=best+sushi+paris"
+node "$WMUX_CLI" browser snapshot
+# Read the results from the accessibility tree
+# Click on a result to see more details
+node "$WMUX_CLI" browser click @e10
+node "$WMUX_CLI" browser snapshot
+node "$WMUX_CLI" browser get-text
+```
 
 ## Agent Spawning
 
