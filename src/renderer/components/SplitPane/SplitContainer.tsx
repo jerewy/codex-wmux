@@ -2,8 +2,18 @@ import React, { useCallback } from 'react';
 import { SplitNode, PaneId } from '../../../shared/types';
 import PaneWrapper from './PaneWrapper';
 import SplitDivider from './SplitDivider';
-import { updateRatio } from '../../store/split-utils';
 import '../../styles/splitpane.css';
+
+/** Get all pane IDs from a subtree — used as stable React key */
+function getTreeKey(node: SplitNode): string {
+  if (node.type === 'leaf') return node.paneId;
+  return `${getTreeKey(node.children[0])}_${getTreeKey(node.children[1])}`;
+}
+
+function getFirstPaneId(n: SplitNode): PaneId {
+  if (n.type === 'leaf') return n.paneId;
+  return getFirstPaneId(n.children[0]);
+}
 
 interface SplitContainerProps {
   node: SplitNode;
@@ -26,6 +36,7 @@ export default function SplitContainer({
         onClick={() => onPaneFocus(node.paneId)}
       >
         <PaneWrapper
+          key={node.paneId}
           paneId={node.paneId}
           leaf={node}
           isFocused={focusedPaneId === node.paneId}
@@ -38,12 +49,6 @@ export default function SplitContainer({
   const { direction, ratio, children } = node;
   const [leftChild, rightChild] = children;
 
-  // Collect the "first" pane ID from each subtree for the divider's ratio change callback
-  const getFirstPaneId = (n: SplitNode): PaneId => {
-    if (n.type === 'leaf') return n.paneId;
-    return getFirstPaneId(n.children[0]);
-  };
-
   const leftPaneId = getFirstPaneId(leftChild);
   const rightPaneId = getFirstPaneId(rightChild);
 
@@ -55,9 +60,13 @@ export default function SplitContainer({
     [ratio, leftPaneId, rightPaneId, onRatioChange],
   );
 
+  const handleDividerDoubleClick = useCallback(() => {
+    onRatioChange(leftPaneId, rightPaneId, 0.5);
+  }, [leftPaneId, rightPaneId, onRatioChange]);
+
   return (
     <div className={`split-container split-container--${direction}`}>
-      <div className="split-child" style={{ flex: ratio }}>
+      <div className="split-child" style={{ flex: ratio }} key={getTreeKey(leftChild)}>
         <SplitContainer
           node={leftChild}
           focusedPaneId={focusedPaneId}
@@ -69,9 +78,10 @@ export default function SplitContainer({
       <SplitDivider
         direction={direction}
         onRatioChange={handleDividerRatioChange}
+        onDoubleClick={handleDividerDoubleClick}
       />
 
-      <div className="split-child" style={{ flex: 1 - ratio }}>
+      <div className="split-child" style={{ flex: 1 - ratio }} key={getTreeKey(rightChild)}>
         <SplitContainer
           node={rightChild}
           focusedPaneId={focusedPaneId}

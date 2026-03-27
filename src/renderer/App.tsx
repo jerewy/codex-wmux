@@ -314,7 +314,7 @@ export default function App() {
     if (paneIds.length > 0 && (focusedPaneId === null || !paneIds.includes(focusedPaneId))) {
       setFocusedPaneId(paneIds[0]);
     }
-  }, [activeWorkspace?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeWorkspace?.id, activeWorkspace?.splitTree]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleRatioChange = useCallback(
     (leftPaneId: PaneId, rightPaneId: PaneId, ratio: number) => {

@@ -168,7 +168,7 @@ export default function PaneWrapper({ leaf, isFocused }: PaneWrapperProps) {
   };
 
   return (
-    <div className="pane-wrapper">
+    <div className={`pane-wrapper ${isFocused ? 'pane-wrapper--focused' : ''}`}>
       <SurfaceTabBar
         paneId={paneId}
         surfaces={surfaces}

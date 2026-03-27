@@ -4,9 +4,10 @@ import '../../styles/splitpane.css';
 interface SplitDividerProps {
   direction: 'horizontal' | 'vertical';
   onRatioChange: (delta: number) => void;
+  onDoubleClick?: () => void;
 }
 
-export default function SplitDivider({ direction, onRatioChange }: SplitDividerProps) {
+export default function SplitDivider({ direction, onRatioChange, onDoubleClick }: SplitDividerProps) {
   const draggingRef = useRef(false);
   const startPosRef = useRef(0);
   const dividerRef = useRef<HTMLDivElement | null>(null);
@@ -56,6 +57,7 @@ export default function SplitDivider({ direction, onRatioChange }: SplitDividerP
       ref={dividerRef}
       className={`split-divider split-divider--${direction}`}
       onMouseDown={onMouseDown}
+      onDoubleClick={onDoubleClick}
     >
       <div className="split-divider__line" />
     </div>
