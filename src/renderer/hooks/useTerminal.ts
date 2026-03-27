@@ -154,17 +154,27 @@ export function useTerminal({ surfaceId, shell, cwd }: UseTerminalOptions = {}):
           return false;
         }
       }
-      // Ctrl+V: check for image in clipboard before letting text paste through
+      // Ctrl+V: paste text from clipboard (or image path if clipboard has image)
       if (event.type === 'keydown' && event.ctrlKey && event.key === 'v') {
-        if (window.wmux?.clipboard?.pasteImage) {
-          window.wmux.clipboard.pasteImage().then((filePath: string | null) => {
+        (async () => {
+          // Check for image first
+          let handled = false;
+          if (window.wmux?.clipboard?.pasteImage) {
+            const filePath = await window.wmux.clipboard.pasteImage();
             if (filePath && ptyIdRef.current) {
-              // Image found — inject path into terminal
               window.wmux.pty.write(ptyIdRef.current, filePath);
+              handled = true;
             }
-            // If no image, normal text paste already happened via xterm
-          });
-        }
+          }
+          // If no image, paste text
+          if (!handled && ptyIdRef.current) {
+            try {
+              const text = await navigator.clipboard.readText();
+              if (text) window.wmux.pty.write(ptyIdRef.current, text);
+            } catch {}
+          }
+        })();
+        return false; // Prevent default — we handle paste ourselves
       }
       return true;
     });
