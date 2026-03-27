@@ -163,6 +163,9 @@ export default function PaneWrapper({ leaf, isFocused }: PaneWrapperProps) {
 
   const handleCloseSurface = (surfaceId: SurfaceId) => {
     if (activeWorkspaceId) {
+      // Kill PTY BEFORE removing from store — so re-mount after tree collapse
+      // doesn't find a dead PTY. Only explicit close kills the PTY.
+      window.wmux?.pty?.kill(surfaceId);
       closeSurface(activeWorkspaceId, paneId, surfaceId);
     }
   };

@@ -254,10 +254,9 @@ export function useTerminal({ surfaceId, shell, cwd }: UseTerminalOptions = {}):
       }
       cleanupFnsRef.current = [];
 
-      // Kill the PTY process
-      if (ptyId) {
-        window.wmux.pty.kill(ptyId);
-      }
+      // Do NOT kill the PTY here — only explicit close (handleCloseSurface)
+      // kills PTYs. This allows tree restructuring (closing an adjacent pane)
+      // to re-mount this component without losing the terminal session.
 
       // Dispose terminal
       terminal.dispose();
