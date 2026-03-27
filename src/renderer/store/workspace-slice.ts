@@ -16,6 +16,7 @@ export interface WorkspaceSlice {
   reorderWorkspaces(ids: WorkspaceId[]): void;
   updateWorkspaceMetadata(id: WorkspaceId, partial: Partial<WorkspaceInfo>): void;
   updateSplitTree(id: WorkspaceId, tree: SplitNode): void;
+  replaceAllWorkspaces(workspaces: Array<Partial<WorkspaceInfo>>): void;
 }
 
 // ─── Slice creator ───────────────────────────────────────────────────────────
@@ -110,5 +111,23 @@ export const createWorkspaceSlice: StateCreator<WorkspaceSlice> = (set, get) => 
     set((state) => ({
       workspaces: state.workspaces.map((w) => (w.id === id ? { ...w, splitTree: tree } : w)),
     }));
+  },
+
+  replaceAllWorkspaces(workspaceConfigs: Array<Partial<WorkspaceInfo>>): void {
+    const newWorkspaces: WorkspaceInfo[] = workspaceConfigs.map((config, i) => ({
+      id: `ws-${uuid()}` as WorkspaceId,
+      title: config.title ?? `Workspace ${i + 1}`,
+      pinned: config.pinned ?? false,
+      shell: config.shell ?? 'pwsh.exe',
+      splitTree: config.splitTree ?? createLeaf(),
+      unreadCount: 0,
+      customColor: config.customColor,
+      cwd: config.cwd,
+    }));
+
+    set({
+      workspaces: newWorkspaces,
+      activeWorkspaceId: newWorkspaces.length > 0 ? newWorkspaces[0].id : null,
+    });
   },
 });
