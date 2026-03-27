@@ -57,7 +57,10 @@ contextBridge.exposeInMainWorld('wmux', {
     },
   },
   browser: {
-    navigate: (surfaceId: string, url: string) => ipcRenderer.send('browser:navigate', surfaceId, url),
+    navigate: (_surfaceId: string, url: string) => {
+      // Dispatch a custom event that BrowserPane listens for
+      window.dispatchEvent(new CustomEvent('wmux:browser-navigate', { detail: { url } }));
+    },
   },
   agent: {
     list: (workspaceId?: string) => ipcRenderer.invoke(IPC_CHANNELS.AGENT_LIST, workspaceId),

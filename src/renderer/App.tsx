@@ -191,7 +191,37 @@ export default function App() {
   useEffect(() => {
     if (!window.wmux?.metadata?.onUpdate) return;
     const unsub = window.wmux.metadata.onUpdate((cmd: any) => {
-      if (!cmd || !cmd.surfaceId) return;
+      if (!cmd) return;
+
+      // ports_update has no surfaceId — handle globally
+      if (cmd.command === 'ports_update') {
+        try {
+          const portsByPid = JSON.parse(cmd.args?.[0] || '{}');
+          const allPorts = Object.values(portsByPid).flat() as number[];
+          // Common dev server ports — auto-navigate browser panel
+          const devPorts = allPorts.filter((p: number) => [3000, 3001, 4000, 4200, 5000, 5173, 5174, 8000, 8080, 8888].includes(p));
+          if (devPorts.length > 0) {
+            const port = devPorts[0];
+            // Navigate browser to first detected dev port
+            const currentWs = useStore.getState().activeWorkspaceId;
+            if (currentWs) {
+              const ws = useStore.getState().workspaces.find(w => w.id === currentWs);
+              const prevPorts = ws?.ports || [];
+              // Only auto-navigate if this is a NEW port (not already known)
+              if (!prevPorts.includes(port)) {
+                window.wmux?.browser?.navigate?.('', `http://localhost:${port}`);
+              }
+            }
+          }
+          // Update all workspaces with port info
+          for (const ws of useStore.getState().workspaces) {
+            updateWorkspaceMetadata(ws.id, { ports: allPorts.length > 0 ? allPorts : undefined });
+          }
+        } catch {}
+        return;
+      }
+
+      if (!cmd.surfaceId) return;
       // Find which workspace owns this surface
       for (const ws of useStore.getState().workspaces) {
         const allSurfaces = getAllSurfaces(ws.splitTree);

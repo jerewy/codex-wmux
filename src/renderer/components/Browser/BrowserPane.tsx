@@ -80,6 +80,16 @@ export default function BrowserPane({ initialUrl = 'https://github.com/amirlehma
     };
   }, []);
 
+  // Listen for programmatic navigation (e.g. auto-navigate on dev server detection)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const url = (e as CustomEvent).detail?.url;
+      if (url) navigate(url);
+    };
+    window.addEventListener('wmux:browser-navigate', handler);
+    return () => window.removeEventListener('wmux:browser-navigate', handler);
+  }, [navigate]);
+
   return (
     <div className="browser-pane">
       <AddressBar
