@@ -63,3 +63,61 @@ export function loadSession(): SessionData | null {
 export function getSessionPath(): string {
   return SESSION_FILE;
 }
+
+const SAVED_DIR = path.join(APPDATA_DIR, 'sessions', 'saved');
+const LAST_SESSION_FILE = path.join(APPDATA_DIR, 'sessions', 'last-session.txt');
+
+function sanitizeName(name: string): string {
+  return name.replace(/[^a-zA-Z0-9_\- ]/g, '_').substring(0, 100);
+}
+
+export function saveNamedSession(session: import('../shared/types').SavedSession): void {
+  if (!fs.existsSync(SAVED_DIR)) fs.mkdirSync(SAVED_DIR, { recursive: true });
+  const filePath = path.join(SAVED_DIR, sanitizeName(session.name) + '.json');
+  fs.writeFileSync(filePath, JSON.stringify(session, null, 2), 'utf-8');
+  setLastSessionName(session.name);
+}
+
+export function loadNamedSession(name: string): import('../shared/types').SavedSession | null {
+  try {
+    const filePath = path.join(SAVED_DIR, sanitizeName(name) + '.json');
+    if (!fs.existsSync(filePath)) return null;
+    return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+  } catch { return null; }
+}
+
+export function listNamedSessions(): Array<{ name: string; savedAt: number; workspaceCount: number }> {
+  if (!fs.existsSync(SAVED_DIR)) return [];
+  try {
+    return fs.readdirSync(SAVED_DIR)
+      .filter(f => f.endsWith('.json'))
+      .map(f => {
+        try {
+          const data = JSON.parse(fs.readFileSync(path.join(SAVED_DIR, f), 'utf-8'));
+          return { name: data.name, savedAt: data.savedAt, workspaceCount: data.workspaces?.length || 0 };
+        } catch { return null; }
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null)
+      .sort((a, b) => b.savedAt - a.savedAt);
+  } catch { return []; }
+}
+
+export function deleteNamedSession(name: string): boolean {
+  try {
+    const filePath = path.join(SAVED_DIR, sanitizeName(name) + '.json');
+    if (fs.existsSync(filePath)) { fs.unlinkSync(filePath); return true; }
+    return false;
+  } catch { return false; }
+}
+
+export function getLastSessionName(): string | null {
+  try {
+    if (!fs.existsSync(LAST_SESSION_FILE)) return null;
+    return fs.readFileSync(LAST_SESSION_FILE, 'utf-8').trim() || null;
+  } catch { return null; }
+}
+
+export function setLastSessionName(name: string): void {
+  if (!fs.existsSync(SAVED_DIR)) fs.mkdirSync(SAVED_DIR, { recursive: true });
+  fs.writeFileSync(LAST_SESSION_FILE, name, 'utf-8');
+}
