@@ -65,6 +65,15 @@ Panes get a blue ring and tabs light up when agents need your attention. Support
 </tr>
 <tr>
 <td width="40%" valign="middle">
+<h3>Saved sessions</h3>
+Save your workspace layout (splits, CWDs, browser URL, shell) and restore it instantly. Click 💾 in the sidebar footer to save, 📂 to load. On startup, wmux auto-loads your last session — no more <code>cd</code> into project dirs and re-splitting panes every time.
+</td>
+<td width="60%">
+<img src="./docs/assets/wmux-sidebar.png" alt="Saved sessions" width="50%" />
+</td>
+</tr>
+<tr>
+<td width="40%" valign="middle">
 <h3>Clipboard image paste</h3>
 Copy a screenshot (Win+Shift+S, Print Screen, etc.) and press Ctrl+V in a wmux terminal. The image is saved to a temp file and the path is injected into the terminal. Claude Code can then read the image — like pasting on claude.ai.
 </td>
