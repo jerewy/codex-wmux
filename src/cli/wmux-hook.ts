@@ -11,8 +11,7 @@ const pipePath = '\\\\.\\pipe\\wmux';
 
 const client = net.connect({ path: pipePath }, () => {
   const msg = JSON.stringify({ method: 'hook.event', params: { tool }, id: 1 });
-  client.write(msg + '\n');
-  setTimeout(() => client.end(), 200);
+  client.write(msg + '\n', () => client.end());
 });
 
 client.on('error', () => {

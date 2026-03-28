@@ -122,8 +122,22 @@ export function ensureClaudeHooks(): void {
     let settings: any;
     try { settings = JSON.parse(raw); } catch { return; }
 
-    // Use absolute path to the hook helper script — no env var dependency
-    const hookScript = path.resolve(path.join(__dirname, '../cli/wmux-hook.js')).split(path.sep).join('/');
+    // Use absolute path to the hook helper script OUTSIDE the ASAR.
+    // __dirname is inside app.asar when packaged — Node.js outside Electron
+    // can't read ASAR files, so we use the standalone copy in resources/cli/.
+    let hookScript: string;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { app } = require('electron') as typeof import('electron');
+      if (app.isPackaged) {
+        hookScript = path.join(process.resourcesPath, 'cli', 'wmux-hook.js');
+      } else {
+        hookScript = path.resolve(path.join(__dirname, '../../resources/cli/wmux-hook.js'));
+      }
+    } catch {
+      hookScript = path.resolve(path.join(__dirname, '../../resources/cli/wmux-hook.js'));
+    }
+    hookScript = hookScript.split(path.sep).join('/');
 
     const makeHookCmd = (tool: string) =>
       `node "${hookScript}" ${tool} 2>/dev/null || true`;
