@@ -161,10 +161,10 @@
   font-family: inherit;
 }
 
-/* Status line: "Running" / "Done: notification..." / "Interrupted" */
+/* Status line — always visible */
 .workspace-row__status {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(255, 255, 255, 0.35);
   font-family: -apple-system, 'Segoe UI', sans-serif;
   line-height: 1.3;
   white-space: nowrap;
@@ -173,7 +173,15 @@
   margin-top: 2px;
 }
 
+.workspace-row__status--idle {
+  color: rgba(255, 255, 255, 0.35);
+}
+
 .workspace-row__status--running {
+  color: #ff9800;
+}
+
+.workspace-row__status--working {
   color: #ff9800;
 }
 

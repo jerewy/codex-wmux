@@ -136,14 +136,15 @@ export function ensureClaudeHooks(): void {
     // Remove any existing wmux hooks
     const filtered = entries.filter((e: any) => {
       if (!Array.isArray(e.hooks)) return true;
-      return !e.hooks.some((h: any) => h.command?.includes('hook.event') && h.command?.includes('wmux'));
+      return !e.hooks.some((h: any) => h.command?.includes('wmux-hook'));
     });
 
-    // Add fresh wmux hooks
-    const wmuxHooks = [
-      { matcher: 'Agent', hooks: [{ type: 'command', command: makeHookCmd('Agent') }] },
-      { matcher: 'Bash|Read|Write|Edit|Grep|Glob', hooks: [{ type: 'command', command: makeHookCmd('Tool') }] },
-    ];
+    // Add fresh wmux hooks — one per tool for specific tracking
+    const trackedTools = ['Bash', 'Read', 'Write', 'Edit', 'Grep', 'Glob', 'Agent', 'WebSearch', 'WebFetch', 'Skill'];
+    const wmuxHooks = trackedTools.map(tool => ({
+      matcher: tool,
+      hooks: [{ type: 'command', command: makeHookCmd(tool) }],
+    }));
 
     settings.hooks.PostToolUse = [...filtered, ...wmuxHooks];
 

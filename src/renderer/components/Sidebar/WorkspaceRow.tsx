@@ -8,6 +8,23 @@ function getAllSurfaceIds(tree: SplitNode): string[] {
   return [...getAllSurfaceIds(tree.children[0]), ...getAllSurfaceIds(tree.children[1])];
 }
 
+/** Human-readable label for a tool name */
+function getToolLabel(tool: string): string {
+  switch (tool) {
+    case 'Bash': return 'Running command...';
+    case 'Read': return 'Reading file...';
+    case 'Edit': return 'Editing...';
+    case 'Write': return 'Writing file...';
+    case 'Grep': return 'Searching code...';
+    case 'Glob': return 'Finding files...';
+    case 'Agent': return 'Running agent...';
+    case 'WebSearch': return 'Searching web...';
+    case 'WebFetch': return 'Fetching page...';
+    case 'Skill': return 'Loading skill...';
+    default: return tool.includes(':') ? `MCP: ${tool}` : `${tool}...`;
+  }
+}
+
 interface WorkspaceRowProps {
   workspace: WorkspaceInfo;
   isActive: boolean;
@@ -15,7 +32,6 @@ interface WorkspaceRowProps {
   onClose: () => void;
   onRename?: (newTitle: string) => void;
   onContextMenu?: (e: React.MouseEvent) => void;
-  // Drag-and-drop
   draggable?: boolean;
   onDragStart?: (e: React.DragEvent) => void;
   onDragOver?: (e: React.DragEvent) => void;
@@ -23,7 +39,7 @@ interface WorkspaceRowProps {
   onDragEnd?: (e: React.DragEvent) => void;
   isDragOver?: boolean;
   agentCount?: number;
-  hookActivity?: { agents: number; tools: number; lastSeen: number };
+  hookActivity?: { lastTool: string; toolCount: number; lastSeen: number };
   claudeActivity?: Record<string, any>;
 }
 
@@ -44,19 +60,16 @@ export default function WorkspaceRow({
   hookActivity,
   claudeActivity,
 }: WorkspaceRowProps) {
-  const [isHovered, setIsHovered] = useState(false);
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(workspace.title);
   const rowRef = useRef<HTMLDivElement>(null);
-  const renameInputRef = useRef<HTMLInputElement>(null);
 
-  // Support custom color: override the active background if set
   const activeBackground = workspace.customColor ?? '#0091FF';
   const customColorTint = workspace.customColor
-    ? `${workspace.customColor}0D` // ~5% opacity
+    ? `${workspace.customColor}0D`
     : undefined;
 
-  // Find Claude activity for this workspace's surfaces
+  // Find Claude activity for this workspace's surfaces (from PTY observer)
   const wsActivity = useMemo(() => {
     if (!claudeActivity) return null;
     const surfaceIds = getAllSurfaceIds(workspace.splitTree);
@@ -72,29 +85,59 @@ export default function WorkspaceRow({
     ? { backgroundColor: customColorTint }
     : {};
 
-  // ── Status text: "Running" / "Done: notification..." / "Interrupted" ──
+  // ── Determine if Claude is actively working (recent hook or observer data) ──
+  const isClaudeActive = useMemo(() => {
+    const now = Date.now();
+    if (hookActivity && now - hookActivity.lastSeen < 15000) return true;
+    if (wsActivity && now - wsActivity.lastUpdate < 15000) return true;
+    return false;
+  }, [hookActivity, wsActivity]);
+
+  // ── Current tool label (from observer or hooks) ──
+  const currentToolLabel = useMemo(() => {
+    const now = Date.now();
+    // Prefer observer data (more specific — comes from PTY output parsing)
+    if (wsActivity?.lastTool && now - wsActivity.lastUpdate < 15000) {
+      return getToolLabel(wsActivity.lastTool);
+    }
+    // Fall back to hook data
+    if (hookActivity?.lastTool && now - hookActivity.lastSeen < 15000) {
+      return getToolLabel(hookActivity.lastTool);
+    }
+    return null;
+  }, [wsActivity, hookActivity]);
+
+  // ── Status text: tool activity > shell state > default ──
   const statusText = useMemo(() => {
+    // Priority 1: Claude is actively using a tool
+    if (currentToolLabel) return currentToolLabel;
+
+    // Priority 2: Shell state from shell integration
     const state = workspace.shellState;
     if (state === 'running') return 'Running';
     if (state === 'interrupted') return 'Interrupted';
     if (state === 'idle') {
       return workspace.notificationText
         ? `Done: ${workspace.notificationText}`
-        : 'Done';
+        : 'Idle';
     }
-    // No shell state yet — show notification if available
+
+    // Priority 3: Notification text without shell state
     if (workspace.notificationText) return workspace.notificationText;
-    return null;
-  }, [workspace.shellState, workspace.notificationText]);
+
+    // Priority 4: Default — always show something
+    return 'Idle';
+  }, [currentToolLabel, workspace.shellState, workspace.notificationText]);
 
   // ── Status color class ──
   const statusClass = useMemo(() => {
+    if (currentToolLabel) return 'workspace-row__status--working';
     const state = workspace.shellState;
     if (state === 'running') return 'workspace-row__status--running';
     if (state === 'interrupted') return 'workspace-row__status--interrupted';
     if (state === 'idle') return 'workspace-row__status--done';
-    return '';
-  }, [workspace.shellState]);
+    return 'workspace-row__status--idle';
+  }, [currentToolLabel, workspace.shellState]);
 
   // ── Context line: "branch* · ~/path/to/dir" ──
   const contextLine = useMemo(() => {
@@ -103,7 +146,6 @@ export default function WorkspaceRow({
       parts.push(`${workspace.gitBranch}${workspace.gitDirty ? '*' : ''}`);
     }
     if (workspace.cwd) {
-      // Shorten Windows paths for display
       const shortCwd = workspace.cwd
         .replace(/\\/g, '/')
         .replace(/^[A-Z]:\//i, '~/')
@@ -112,6 +154,15 @@ export default function WorkspaceRow({
     }
     return parts.length > 0 ? parts.join(' · ') : null;
   }, [workspace.gitBranch, workspace.gitDirty, workspace.cwd]);
+
+  // ── State dot class — pulsing when Claude is active ──
+  const stateDotClass = useMemo(() => {
+    if (isClaudeActive) return 'workspace-row__state-dot--running';
+    if (workspace.shellState === 'running') return 'workspace-row__state-dot--running';
+    if (workspace.shellState === 'interrupted') return 'workspace-row__state-dot--interrupted';
+    if (workspace.shellState === 'idle') return 'workspace-row__state-dot--idle';
+    return '';
+  }, [isClaudeActive, workspace.shellState]);
 
   return (
     <div
@@ -124,29 +175,19 @@ export default function WorkspaceRow({
       style={rowStyle}
       onClick={onSelect}
       onContextMenu={onContextMenu}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
       draggable={draggable}
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDrop={onDrop}
       onDragEnd={onDragEnd}
     >
-      {/* Left rail indicator — always rendered; CSS controls opacity */}
       <span className="workspace-row__rail" />
 
-      {/* Title row */}
+      {/* Line 1: Title */}
       <div className="workspace-row__header">
-        <span
-          className={`workspace-row__state-dot${
-            workspace.shellState === 'running' ? ' workspace-row__state-dot--running' :
-            workspace.shellState === 'interrupted' ? ' workspace-row__state-dot--interrupted' :
-            workspace.shellState === 'idle' ? ' workspace-row__state-dot--idle' : ''
-          }`}
-        />
+        <span className={`workspace-row__state-dot ${stateDotClass}`} />
         {isRenaming ? (
           <input
-            ref={renameInputRef}
             className="workspace-row__rename-input"
             value={renameValue}
             onChange={(e) => setRenameValue(e.target.value)}
@@ -197,43 +238,37 @@ export default function WorkspaceRow({
           }}
           title="Close workspace"
         >
-          ✕
+          &#x2715;
         </button>
       </div>
 
-      {/* Status line: "Running" / "Done: notification..." / "Interrupted" */}
-      {statusText && (
-        <div className={`workspace-row__status ${statusClass}`}>
-          {statusText}
-        </div>
-      )}
+      {/* Line 2: Status — always visible */}
+      <div className={`workspace-row__status ${statusClass}`}>
+        {statusText}
+      </div>
 
-      {/* PR info — shown inline if present */}
+      {/* PR info */}
       {workspace.prNumber != null && (
         <div className="workspace-row__pr">
           {workspace.prStatus != null && (
             <PrStatusIcon status={workspace.prStatus} size={12} />
           )}
-          <span className="workspace-row__pr-number">
-            #{workspace.prNumber}
-          </span>
+          <span className="workspace-row__pr-number">#{workspace.prNumber}</span>
           {workspace.prStatus != null && (
-            <span className="workspace-row__pr-status">
-              {workspace.prStatus}
-            </span>
+            <span className="workspace-row__pr-status">{workspace.prStatus}</span>
           )}
         </div>
       )}
 
-      {/* Context line: "branch* · ~/path/to/dir" */}
+      {/* Line 3: Context — branch · path */}
       {contextLine && (
         <div className="workspace-row__context">
           {contextLine}
         </div>
       )}
 
-      {/* Claude agent activity — compact lines below context */}
-      {wsActivity && wsActivity.agents && wsActivity.agents.length > 0 && (
+      {/* Claude agent activity — sub-agents with status */}
+      {wsActivity?.agents?.length > 0 && (
         <div className="workspace-row__claude-activity">
           {wsActivity.agents.map((agent: any, i: number) => (
             <div key={i} className="workspace-row__agent-line">
@@ -244,6 +279,8 @@ export default function WorkspaceRow({
           ))}
         </div>
       )}
+
+      {/* Active skill */}
       {wsActivity?.activeSkill && (
         <div className="workspace-row__meta-line workspace-row__skill">
           {wsActivity.activeSkill}

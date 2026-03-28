@@ -89,8 +89,8 @@ export default function App() {
   const [browserWidth, setBrowserWidth] = useState(420);
   const [tutorialOpen, setTutorialOpen] = useState(false);
   const [notifPanelOpen, setNotifPanelOpen] = useState(false);
-  // Per-workspace hook activity: workspaceId → { agents: count, tools: count, lastSeen }
-  const [hookActivity, setHookActivity] = useState<Record<string, { agents: number; tools: number; lastSeen: number }>>({});
+  // Per-workspace hook activity: workspaceId → { lastTool, toolCount, lastSeen }
+  const [hookActivity, setHookActivity] = useState<Record<string, { lastTool: string; toolCount: number; lastSeen: number }>>({});
   // Per-surface Claude activity (parsed from terminal output)
   const [claudeActivity, setClaudeActivity] = useState<Record<string, any>>({});
 
@@ -291,12 +291,12 @@ export default function App() {
       const wsId = useStore.getState().activeWorkspaceId;
       if (!wsId) return;
       setHookActivity(prev => {
-        const existing = prev[wsId] || { agents: 0, tools: 0, lastSeen: 0 };
+        const existing = prev[wsId] || { lastTool: '', toolCount: 0, lastSeen: 0 };
         return {
           ...prev,
           [wsId]: {
-            agents: event.tool === 'Agent' ? existing.agents + 1 : existing.agents,
-            tools: existing.tools + 1,
+            lastTool: event.tool,
+            toolCount: existing.toolCount + 1,
             lastSeen: Date.now(),
           },
         };

@@ -23,7 +23,7 @@ interface SidebarProps {
   onRename: (id: WorkspaceId, title: string) => void;
   onReorder: (ids: WorkspaceId[]) => void;
   onUpdateMetadata: (id: WorkspaceId, partial: Partial<WorkspaceInfo>) => void;
-  hookActivity?: Record<string, { agents: number; tools: number; lastSeen: number }>;
+  hookActivity?: Record<string, { lastTool: string; toolCount: number; lastSeen: number }>;
   claudeActivity?: Record<string, any>;
   onSaveSession?: (name: string) => void;
   onLoadSession?: (name: string) => void;
