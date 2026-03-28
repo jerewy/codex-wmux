@@ -87,6 +87,7 @@ export default function App() {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [browserOpen, setBrowserOpen] = useState(true);
   const [browserWidth, setBrowserWidth] = useState(420);
+  const [isResizingBrowser, setIsResizingBrowser] = useState(false);
   const [tutorialOpen, setTutorialOpen] = useState(false);
   const [notifPanelOpen, setNotifPanelOpen] = useState(false);
   // Per-workspace hook activity: workspaceId → { lastTool, toolCount, lastSeen }
@@ -541,6 +542,7 @@ export default function App() {
               }}
               onMouseDown={(e) => {
                 e.preventDefault();
+                setIsResizingBrowser(true);
                 const startX = e.clientX;
                 const startWidth = browserWidth;
                 const onMove = (ev: MouseEvent) => {
@@ -548,6 +550,7 @@ export default function App() {
                   setBrowserWidth(Math.max(250, Math.min(800, startWidth + delta)));
                 };
                 const onUp = () => {
+                  setIsResizingBrowser(false);
                   document.removeEventListener('mousemove', onMove);
                   document.removeEventListener('mouseup', onUp);
                 };
@@ -565,7 +568,13 @@ export default function App() {
                 transform: 'translateX(-50%)',
               }} />
             </div>
-            <div style={{ width: browserWidth, flexShrink: 0, overflow: 'hidden' }}>
+            <div style={{ width: browserWidth, flexShrink: 0, overflow: 'hidden', position: 'relative' }}>
+              {isResizingBrowser && (
+                <div style={{
+                  position: 'absolute', inset: 0, zIndex: 10,
+                  cursor: 'col-resize', background: 'transparent',
+                }} />
+              )}
               <BrowserPane surfaceId="browser-main" />
             </div>
           </>
