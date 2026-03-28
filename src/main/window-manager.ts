@@ -1,7 +1,19 @@
-import { BrowserWindow } from 'electron';
+import { BrowserWindow, nativeImage } from 'electron';
 import { v4 as uuid } from 'uuid';
 import path from 'path';
 import type { WindowId } from '../shared/types';
+
+function getAppIcon(): Electron.NativeImage | undefined {
+  try {
+    const { app } = require('electron') as typeof import('electron');
+    const iconPath = app.isPackaged
+      ? path.join(process.resourcesPath, 'icon.png')
+      : path.resolve(path.join(__dirname, '../../resources/icon.png'));
+    return nativeImage.createFromPath(iconPath);
+  } catch {
+    return undefined;
+  }
+}
 
 interface WindowEntry {
   id: WindowId;
@@ -21,6 +33,7 @@ export class WindowManager {
       y: bounds?.y,
       minWidth: 800,
       minHeight: 500,
+      icon: getAppIcon(),
       titleBarStyle: 'hidden',
       titleBarOverlay: {
         color: '#1a1a1a',
