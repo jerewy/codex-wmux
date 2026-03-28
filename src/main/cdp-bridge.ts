@@ -89,9 +89,10 @@ export class CDPBridge {
   }
 
   private getDebugger() {
-    if (!this.webContentsId) throw new Error('browser_not_open');
-    const wc = webContents.fromId(this.webContentsId);
-    if (!wc || !wc.debugger.isAttached()) throw new Error('browser_not_open');
+    if (this.webContentsId === null) throw new Error('browser_not_open');
+    let wc;
+    try { wc = webContents.fromId(this.webContentsId); } catch { throw new Error('browser_not_open'); }
+    if (!wc || wc.isDestroyed() || !wc.debugger.isAttached()) throw new Error('browser_not_open');
     return wc.debugger;
   }
 
@@ -100,10 +101,13 @@ export class CDPBridge {
   }
 
   async navigate(url: string, timeout = 30000): Promise<void> {
-    const wc = webContents.fromId(this.webContentsId!);
+    if (this.webContentsId === null) throw new Error('browser_not_open');
+    let wc;
+    try { wc = webContents.fromId(this.webContentsId); } catch { throw new Error('browser_not_open'); }
+    if (!wc || wc.isDestroyed()) throw new Error('browser_not_open');
     const loadPromise = new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('timeout')), timeout);
-      const onFinish = () => { clearTimeout(timer); wc?.removeListener('did-finish-load', onFinish); resolve(); };
+      const timer = setTimeout(() => { wc?.removeListener('did-finish-load', onFinish); reject(new Error('timeout')); }, timeout);
+      const onFinish = () => { clearTimeout(timer); resolve(); };
       wc?.once('did-finish-load', onFinish);
     });
     await this.sendCommand('Page.navigate', { url });

@@ -54,8 +54,10 @@ export default function Sidebar({
   const [saveInputValue, setSaveInputValue] = useState('');
 
   useEffect(() => {
+    let polling = false;
     const interval = setInterval(async () => {
-      if (!window.wmux?.agent?.list) return;
+      if (polling || !window.wmux?.agent?.list) return;
+      polling = true;
       try {
         const agents = await window.wmux.agent.list();
         const counts: Record<string, number> = {};
@@ -66,6 +68,7 @@ export default function Sidebar({
         }
         setAgentCounts(counts);
       } catch {}
+      polling = false;
     }, 3000);
     return () => clearInterval(interval);
   }, []);

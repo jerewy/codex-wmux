@@ -92,7 +92,7 @@ export default function App() {
   // Per-workspace hook activity: workspaceId → { agents: count, tools: count, lastSeen }
   const [hookActivity, setHookActivity] = useState<Record<string, { agents: number; tools: number; lastSeen: number }>>({});
   // Per-surface Claude activity (parsed from terminal output)
-  const [claudeActivity, setClaudeActivity] = useState<Record<string, any>>({});;
+  const [claudeActivity, setClaudeActivity] = useState<Record<string, any>>({});
 
   // Global keyboard listener for command palette toggle (Ctrl+Shift+P)
   useEffect(() => {
@@ -198,8 +198,9 @@ export default function App() {
         try {
           const portsByPid = JSON.parse(cmd.args?.[0] || '{}');
           const allPorts = Object.values(portsByPid).flat() as number[];
-          // Common dev server ports — auto-navigate browser panel
-          const devPorts = allPorts.filter((p: number) => [3000, 3001, 4000, 4200, 5000, 5173, 5174, 8000, 8080, 8888].includes(p));
+          // Only keep dev-relevant ports — ignore ephemeral system ports
+          const DEV_PORTS = [3000, 3001, 4000, 4200, 5000, 5173, 5174, 8000, 8080, 8888];
+          const devPorts = allPorts.filter((p: number) => DEV_PORTS.includes(p));
           if (devPorts.length > 0) {
             const port = devPorts[0];
             // Navigate browser to first detected dev port
@@ -213,9 +214,9 @@ export default function App() {
               }
             }
           }
-          // Update all workspaces with port info
+          // Only store dev-relevant ports in workspace metadata (not system ports)
           for (const ws of useStore.getState().workspaces) {
-            updateWorkspaceMetadata(ws.id, { ports: allPorts.length > 0 ? allPorts : undefined });
+            updateWorkspaceMetadata(ws.id, { ports: devPorts.length > 0 ? devPorts : undefined });
           }
         } catch {}
         return;
@@ -305,11 +306,12 @@ export default function App() {
   }, []);
 
   // Clear stale activity after 10 seconds of no hooks
+  // NOTE: no dependency on hookActivity — that would cause an infinite re-subscribe loop
   useEffect(() => {
-    if (Object.keys(hookActivity).length === 0) return;
     const timer = setInterval(() => {
-      const now = Date.now();
       setHookActivity(prev => {
+        if (Object.keys(prev).length === 0) return prev;
+        const now = Date.now();
         const next: typeof prev = {};
         let changed = false;
         for (const [k, v] of Object.entries(prev)) {
@@ -323,7 +325,7 @@ export default function App() {
       });
     }, 3000);
     return () => clearInterval(timer);
-  }, [hookActivity]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Listen for Claude Code activity parsed from terminal output
   useEffect(() => {
@@ -507,7 +509,7 @@ export default function App() {
 
         {/* Middle: terminals — ALL workspaces stay mounted, only active is visible */}
         {/* This keeps PTYs alive when switching sessions (Claude Code etc. keep running) */}
-        <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+        <div style={{ flex: 1, overflow: 'hidden', position: 'relative', minWidth: 0 }}>
           {workspaces.map((ws) => (
             <div
               key={ws.id}
@@ -520,10 +522,7 @@ export default function App() {
               <SplitContainer
                 node={ws.splitTree}
                 focusedPaneId={ws.id === activeWorkspaceId ? focusedPaneId : null}
-                onRatioChange={(left, right, ratio) => {
-                  const newTree = updateRatio(ws.splitTree, left, right, ratio);
-                  updateSplitTree(ws.id, newTree);
-                }}
+                onRatioChange={ws.id === activeWorkspaceId ? handleRatioChange : undefined}
                 onPaneFocus={handlePaneFocus}
               />
             </div>

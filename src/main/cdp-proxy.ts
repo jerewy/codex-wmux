@@ -92,11 +92,16 @@ export class CDPProxy {
       };
       wc.debugger.on('message', onDebuggerMessage);
 
+      const cleanup = () => {
+        try { wc?.debugger.removeListener('message', onDebuggerMessage); } catch {}
+        this.activeWs = null;
+      };
+
       // Handle incoming CDP commands from WebSocket client
       ws.on('message', async (data) => {
         try {
           const msg = JSON.parse(data.toString());
-          if (!wc || !wc.debugger.isAttached()) {
+          if (!wc || wc.isDestroyed() || !wc.debugger.isAttached()) {
             ws.send(JSON.stringify({ id: msg.id, error: { code: -32000, message: 'Browser not attached' } }));
             return;
           }
@@ -111,15 +116,8 @@ export class CDPProxy {
         }
       });
 
-      ws.on('close', () => {
-        wc?.debugger.removeListener('message', onDebuggerMessage);
-        this.activeWs = null;
-      });
-
-      ws.on('error', () => {
-        wc?.debugger.removeListener('message', onDebuggerMessage);
-        this.activeWs = null;
-      });
+      ws.on('close', cleanup);
+      ws.on('error', cleanup);
 
       console.log('[wmux] CDP proxy: client connected');
     });

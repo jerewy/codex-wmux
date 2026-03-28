@@ -232,13 +232,18 @@ export function useTerminal({ surfaceId, shell, cwd }: UseTerminalOptions = {}):
       }
     });
 
-    // ResizeObserver to auto-fit and relay size to PTY
+    // ResizeObserver to auto-fit and relay size to PTY (debounced to prevent IPC spam)
+    let resizeRaf: number | null = null;
     const resizeObserver = new ResizeObserver(() => {
-      fit();
-      const dims = fitAddon.proposeDimensions();
-      if (dims && ptyIdRef.current) {
-        window.wmux.pty.resize(ptyIdRef.current, dims.cols, dims.rows);
-      }
+      if (resizeRaf !== null) cancelAnimationFrame(resizeRaf);
+      resizeRaf = requestAnimationFrame(() => {
+        resizeRaf = null;
+        fit();
+        const dims = fitAddon.proposeDimensions();
+        if (dims && ptyIdRef.current) {
+          window.wmux.pty.resize(ptyIdRef.current, dims.cols, dims.rows);
+        }
+      });
     });
 
     resizeObserver.observe(terminalRef.current);
@@ -246,6 +251,7 @@ export function useTerminal({ surfaceId, shell, cwd }: UseTerminalOptions = {}):
     // Cleanup
     return () => {
       resizeObserver.disconnect();
+      if (resizeRaf !== null) cancelAnimationFrame(resizeRaf);
       dataDisposable.dispose();
 
       // Run all IPC unsubscribe functions

@@ -37,7 +37,11 @@ export class AgentManager {
       env: { ...(params.env || {}), WMUX_AGENT_ID: agentId, WMUX_AGENT_LABEL: params.label },
     });
 
-    setTimeout(() => { this.ptyManager.write(surfaceId, params.cmd + '\r'); }, 500);
+    setTimeout(() => {
+      if (this.ptyManager.has(surfaceId)) {
+        this.ptyManager.write(surfaceId, params.cmd + '\r');
+      }
+    }, 800);
 
     const info: AgentInfo = {
       agentId, surfaceId, paneId: params.paneId, workspaceId: params.workspaceId,

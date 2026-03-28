@@ -1,4 +1,4 @@
-import { ipcMain, BrowserWindow, clipboard } from 'electron';
+import { ipcMain, BrowserWindow, clipboard, shell } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -40,17 +40,20 @@ export function registerIpcHandlers(windowManager: WindowManager, cdpProxyInstan
     };
     const id = await ptyManager.create(resolvedOptions);
     const window = BrowserWindow.fromWebContents(_event.sender);
-    ptyManager.onData(id, (data) => {
+    const unsubData = ptyManager.onData(id, (data) => {
       if (window && !window.isDestroyed()) {
         window.webContents.send(IPC_CHANNELS.PTY_DATA, id, data);
       }
       // Feed Claude Code observer for sidebar activity display
-      observePtyData(id, data);
+      try { observePtyData(id, data); } catch {}
     });
-    ptyManager.onExit(id, (code) => {
+    const unsubExit = ptyManager.onExit(id, (code) => {
       if (window && !window.isDestroyed()) {
         window.webContents.send(IPC_CHANNELS.PTY_EXIT, id, code);
       }
+      // Clean up listeners when PTY exits
+      unsubData();
+      unsubExit();
     });
     return id;
   });
@@ -73,6 +76,12 @@ export function registerIpcHandlers(windowManager: WindowManager, cdpProxyInstan
 
   ipcMain.handle(IPC_CHANNELS.SYSTEM_GET_SHELLS, async () => {
     return detectShells();
+  });
+
+  ipcMain.on(IPC_CHANNELS.SYSTEM_OPEN_EXTERNAL, (_event, url: string) => {
+    if (typeof url === 'string' && (url.startsWith('https://') || url.startsWith('http://'))) {
+      shell.openExternal(url);
+    }
   });
 
   // Config / Theme handlers
@@ -167,15 +176,18 @@ export function registerIpcHandlers(windowManager: WindowManager, cdpProxyInstan
 }
 
 export function setupAgentPtyForwarding(surfaceId: string, window: BrowserWindow): void {
-  ptyManager.onData(surfaceId as any, (data) => {
+  const unsubData = ptyManager.onData(surfaceId as any, (data) => {
     if (window && !window.isDestroyed()) {
       window.webContents.send(IPC_CHANNELS.PTY_DATA, surfaceId, data);
     }
   });
-  ptyManager.onExit(surfaceId as any, (code) => {
+  const unsubExit = ptyManager.onExit(surfaceId as any, (code) => {
     if (window && !window.isDestroyed()) {
       window.webContents.send(IPC_CHANNELS.PTY_EXIT, surfaceId, code);
     }
+    // Clean up listeners when PTY exits
+    unsubData();
+    unsubExit();
   });
 }
 

@@ -1,70 +1,71 @@
-import { execSync } from 'child_process';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
 import { ShellInfo } from '../shared/types';
 
-function commandExists(cmd: string): boolean {
+const execFileAsync = promisify(execFile);
+
+async function commandExists(cmd: string): Promise<boolean> {
   try {
-    execSync(`where ${cmd}`, { stdio: 'ignore' });
+    await execFileAsync('where', [cmd], { windowsHide: true, timeout: 3000 });
     return true;
   } catch {
     return false;
   }
 }
 
-function resolveCommand(cmd: string): string {
+async function resolveCommand(cmd: string): Promise<string> {
   try {
-    const result = execSync(`where ${cmd}`, { encoding: 'utf8' });
-    return result.split(/\r?\n/)[0].trim();
+    const { stdout } = await execFileAsync('where', [cmd], { encoding: 'utf8', windowsHide: true, timeout: 3000 });
+    return stdout.split(/\r?\n/)[0].trim();
   } catch {
     return cmd;
   }
 }
 
-export function detectShells(): ShellInfo[] {
+export async function detectShells(): Promise<ShellInfo[]> {
   const shells: ShellInfo[] = [];
 
-  // PowerShell 7+ (pwsh)
-  if (commandExists('pwsh.exe')) {
-    shells.push({
-      name: 'PowerShell 7',
-      command: resolveCommand('pwsh.exe'),
-      args: ['-NoLogo'],
-      available: true,
-    });
+  // Run all checks in parallel instead of sequentially
+  const [hasPwsh, hasPowershell, hasWsl] = await Promise.all([
+    commandExists('pwsh.exe'),
+    commandExists('powershell.exe'),
+    commandExists('wsl.exe'),
+  ]);
+
+  // Resolve paths in parallel for shells that exist
+  const resolvePromises: Promise<void>[] = [];
+
+  if (hasPwsh) {
+    resolvePromises.push(
+      resolveCommand('pwsh.exe').then(path => {
+        shells.push({ name: 'PowerShell 7', command: path, args: ['-NoLogo'], available: true });
+      })
+    );
   }
 
-  // Windows PowerShell 5
-  if (commandExists('powershell.exe')) {
-    shells.push({
-      name: 'Windows PowerShell',
-      command: resolveCommand('powershell.exe'),
-      args: ['-NoLogo'],
-      available: true,
-    });
+  if (hasPowershell) {
+    resolvePromises.push(
+      resolveCommand('powershell.exe').then(path => {
+        shells.push({ name: 'Windows PowerShell', command: path, args: ['-NoLogo'], available: true });
+      })
+    );
   }
 
-  // CMD — always available
-  shells.push({
-    name: 'Command Prompt',
-    command: 'cmd.exe',
-    args: [],
-    available: true,
-  });
+  await Promise.all(resolvePromises);
 
-  // WSL
-  if (commandExists('wsl.exe')) {
-    shells.push({
-      name: 'WSL',
-      command: resolveCommand('wsl.exe'),
-      args: [],
-      available: true,
-    });
+  // CMD — always available, no resolve needed
+  shells.push({ name: 'Command Prompt', command: 'cmd.exe', args: [], available: true });
+
+  if (hasWsl) {
+    const wslPath = await resolveCommand('wsl.exe');
+    shells.push({ name: 'WSL', command: wslPath, args: [], available: true });
   }
 
   return shells;
 }
 
-export function getDefaultShell(): ShellInfo {
-  const shells = detectShells();
+export async function getDefaultShell(): Promise<ShellInfo> {
+  const shells = await detectShells();
 
   // Preference order: pwsh > powershell > cmd
   const preferred = ['PowerShell 7', 'Windows PowerShell', 'Command Prompt'];

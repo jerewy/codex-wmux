@@ -58,6 +58,7 @@ export class GitPoller {
       const { stdout: branch } = await execFileAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
         cwd,
         windowsHide: true,
+        timeout: 5000,
       });
 
       let dirty = false;
@@ -65,6 +66,7 @@ export class GitPoller {
         const { stdout: status } = await execFileAsync('git', ['status', '--porcelain'], {
           cwd,
           windowsHide: true,
+          timeout: 5000,
         });
         dirty = status.trim().length > 0;
       } catch {}

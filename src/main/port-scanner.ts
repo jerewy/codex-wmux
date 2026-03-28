@@ -51,7 +51,7 @@ export class PortScanner {
     this.scanning = true;
 
     try {
-      const { stdout } = await execFileAsync('netstat', ['-ano'], { windowsHide: true });
+      const { stdout } = await execFileAsync('netstat', ['-ano'], { windowsHide: true, timeout: 10000 });
       const portsByPid = this.parseNetstat(stdout);
       this.callback?.(portsByPid);
     } catch {

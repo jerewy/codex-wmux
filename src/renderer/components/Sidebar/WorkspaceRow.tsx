@@ -72,9 +72,46 @@ export default function WorkspaceRow({
     ? { backgroundColor: customColorTint }
     : {};
 
-  const portsStr = workspace.ports && workspace.ports.length > 0
-    ? workspace.ports.map((p) => `:${p}`).join(', ')
-    : null;
+  // ── Status text: "Running" / "Done: notification..." / "Interrupted" ──
+  const statusText = useMemo(() => {
+    const state = workspace.shellState;
+    if (state === 'running') return 'Running';
+    if (state === 'interrupted') return 'Interrupted';
+    if (state === 'idle') {
+      return workspace.notificationText
+        ? `Done: ${workspace.notificationText}`
+        : 'Done';
+    }
+    // No shell state yet — show notification if available
+    if (workspace.notificationText) return workspace.notificationText;
+    return null;
+  }, [workspace.shellState, workspace.notificationText]);
+
+  // ── Status color class ──
+  const statusClass = useMemo(() => {
+    const state = workspace.shellState;
+    if (state === 'running') return 'workspace-row__status--running';
+    if (state === 'interrupted') return 'workspace-row__status--interrupted';
+    if (state === 'idle') return 'workspace-row__status--done';
+    return '';
+  }, [workspace.shellState]);
+
+  // ── Context line: "branch* · ~/path/to/dir" ──
+  const contextLine = useMemo(() => {
+    const parts: string[] = [];
+    if (workspace.gitBranch) {
+      parts.push(`${workspace.gitBranch}${workspace.gitDirty ? '*' : ''}`);
+    }
+    if (workspace.cwd) {
+      // Shorten Windows paths for display
+      const shortCwd = workspace.cwd
+        .replace(/\\/g, '/')
+        .replace(/^[A-Z]:\//i, '~/')
+        .replace(/\/Users\/[^/]+/i, '~');
+      parts.push(shortCwd);
+    }
+    return parts.length > 0 ? parts.join(' · ') : null;
+  }, [workspace.gitBranch, workspace.gitDirty, workspace.cwd]);
 
   return (
     <div
@@ -106,7 +143,6 @@ export default function WorkspaceRow({
             workspace.shellState === 'interrupted' ? ' workspace-row__state-dot--interrupted' :
             workspace.shellState === 'idle' ? ' workspace-row__state-dot--idle' : ''
           }`}
-          title={workspace.shellState === 'running' ? 'Working...' : workspace.shellState === 'interrupted' ? 'Interrupted' : workspace.shellState === 'idle' ? 'Done' : ''}
         />
         {isRenaming ? (
           <input
@@ -165,85 +201,52 @@ export default function WorkspaceRow({
         </button>
       </div>
 
-      {/* Metadata section */}
-      {(workspace.notificationText ||
-        workspace.gitBranch ||
-        workspace.cwd ||
-        workspace.prNumber != null ||
-        portsStr ||
-        agentCount > 0 ||
-        hookActivity ||
-        wsActivity) && (
-        <div className="workspace-row__metadata">
-          {/* Notification text */}
-          {workspace.notificationText && (
-            <div className="workspace-row__notification">
-              {workspace.notificationText}
-            </div>
-          )}
+      {/* Status line: "Running" / "Done: notification..." / "Interrupted" */}
+      {statusText && (
+        <div className={`workspace-row__status ${statusClass}`}>
+          {statusText}
+        </div>
+      )}
 
-          {/* PR info */}
-          {workspace.prNumber != null && (
-            <div className="workspace-row__pr">
-              {workspace.prStatus != null && (
-                <PrStatusIcon status={workspace.prStatus} size={12} />
-              )}
-              <span className="workspace-row__pr-number">
-                #{workspace.prNumber}
-              </span>
-              {workspace.prStatus != null && (
-                <span className="workspace-row__pr-status">
-                  {workspace.prStatus}
-                </span>
-              )}
-            </div>
+      {/* PR info — shown inline if present */}
+      {workspace.prNumber != null && (
+        <div className="workspace-row__pr">
+          {workspace.prStatus != null && (
+            <PrStatusIcon status={workspace.prStatus} size={12} />
           )}
+          <span className="workspace-row__pr-number">
+            #{workspace.prNumber}
+          </span>
+          {workspace.prStatus != null && (
+            <span className="workspace-row__pr-status">
+              {workspace.prStatus}
+            </span>
+          )}
+        </div>
+      )}
 
-          {/* Git branch */}
-          {workspace.gitBranch && (
-            <div className="workspace-row__meta-line">
-              {workspace.gitDirty ? '* ' : ''}{workspace.gitBranch}
-            </div>
-          )}
+      {/* Context line: "branch* · ~/path/to/dir" */}
+      {contextLine && (
+        <div className="workspace-row__context">
+          {contextLine}
+        </div>
+      )}
 
-          {/* Working directory */}
-          {workspace.cwd && (
-            <div className="workspace-row__meta-line">
-              {workspace.cwd}
+      {/* Claude agent activity — compact lines below context */}
+      {wsActivity && wsActivity.agents && wsActivity.agents.length > 0 && (
+        <div className="workspace-row__claude-activity">
+          {wsActivity.agents.map((agent: any, i: number) => (
+            <div key={i} className="workspace-row__agent-line">
+              <span className={`workspace-row__agent-dot ${agent.done ? 'workspace-row__agent-dot--done' : 'workspace-row__agent-dot--working'}`} />
+              <span className="workspace-row__agent-name">{agent.name}</span>
+              <span className="workspace-row__agent-tokens">{agent.tokens}tok</span>
             </div>
-          )}
-
-          {/* Ports */}
-          {portsStr && (
-            <div className="workspace-row__meta-line">
-              {portsStr}
-            </div>
-          )}
-
-          {/* Agent count */}
-          {agentCount > 0 && (
-            <div className="workspace-row__meta-line workspace-row__agents">
-              {agentCount} agent{agentCount !== 1 ? 's' : ''}
-            </div>
-          )}
-
-          {/* Claude activity (parsed from terminal output) */}
-          {wsActivity && wsActivity.agents && wsActivity.agents.length > 0 && (
-            <div className="workspace-row__claude-activity">
-              {wsActivity.agents.map((agent: any, i: number) => (
-                <div key={i} className="workspace-row__agent-line">
-                  <span className={`workspace-row__agent-dot ${agent.done ? 'workspace-row__agent-dot--done' : 'workspace-row__agent-dot--working'}`} />
-                  <span className="workspace-row__agent-name">{agent.name}</span>
-                  <span className="workspace-row__agent-tokens">{agent.tokens}tok</span>
-                </div>
-              ))}
-            </div>
-          )}
-          {wsActivity?.activeSkill && (
-            <div className="workspace-row__meta-line workspace-row__skill">
-              {wsActivity.activeSkill}
-            </div>
-          )}
+          ))}
+        </div>
+      )}
+      {wsActivity?.activeSkill && (
+        <div className="workspace-row__meta-line workspace-row__skill">
+          {wsActivity.activeSkill}
         </div>
       )}
     </div>

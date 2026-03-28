@@ -51,6 +51,7 @@ export class PrPoller {
       const { stdout } = await execFileAsync('gh', ['pr', 'view', '--json', 'number,state,title'], {
         cwd,
         windowsHide: true,
+        timeout: 10000,
       });
 
       const pr = JSON.parse(stdout.trim()) as PrInfo;

@@ -7,6 +7,7 @@
   border-right: 1px solid rgba(255, 255, 255, 0.06);
   user-select: none;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .sidebar__header {
@@ -160,14 +161,51 @@
   font-family: inherit;
 }
 
-/* Metadata section */
-.workspace-row__metadata {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  margin-top: 3px;
+/* Status line: "Running" / "Done: notification..." / "Interrupted" */
+.workspace-row__status {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.45);
+  font-family: -apple-system, 'Segoe UI', sans-serif;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
 }
 
+.workspace-row__status--running {
+  color: #ff9800;
+}
+
+.workspace-row__status--done {
+  color: #4caf50;
+}
+
+.workspace-row__status--interrupted {
+  color: #e53935;
+}
+
+.workspace-row--active .workspace-row__status {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* Context line: "branch* · ~/path/to/dir" */
+.workspace-row__context {
+  font-size: 10.5px;
+  color: rgba(255, 255, 255, 0.35);
+  font-family: 'Cascadia Mono', 'Consolas', monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.4;
+  margin-top: 1px;
+}
+
+.workspace-row--active .workspace-row__context {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+/* Legacy meta-line — kept for agent skill display */
 .workspace-row__meta-line {
   font-size: 10px;
   color: rgba(255, 255, 255, 0.4);
@@ -180,23 +218,6 @@
 
 .workspace-row--active .workspace-row__meta-line {
   color: rgba(255, 255, 255, 0.7);
-}
-
-/* Notification text */
-.workspace-row__notification {
-  font-size: 10px;
-  color: rgba(255, 255, 255, 0.45);
-  font-family: -apple-system, 'Segoe UI', sans-serif;
-  line-height: 1.3;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  margin-top: 2px;
-}
-
-.workspace-row--active .workspace-row__notification {
-  color: rgba(255, 255, 255, 0.75);
 }
 
 /* PR info */
@@ -450,6 +471,7 @@
 .workspace-row__state-dot--running {
   background: #ff9800;
   animation: pulse-dot 1.2s ease-in-out infinite;
+  will-change: opacity;
 }
 
 .workspace-row__state-dot--idle {
@@ -500,6 +522,7 @@
 .workspace-row__agent-dot--working {
   background: #ff9800;
   animation: pulse-dot 1.2s ease-in-out infinite;
+  will-change: opacity;
 }
 
 .workspace-row__agent-dot--done {

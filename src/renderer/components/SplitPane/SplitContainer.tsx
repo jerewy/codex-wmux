@@ -18,7 +18,7 @@ function getFirstPaneId(n: SplitNode): PaneId {
 interface SplitContainerProps {
   node: SplitNode;
   focusedPaneId: PaneId | null;
-  onRatioChange: (leftPaneId: PaneId, rightPaneId: PaneId, ratio: number) => void;
+  onRatioChange?: (leftPaneId: PaneId, rightPaneId: PaneId, ratio: number) => void;
   onPaneFocus: (paneId: PaneId) => void;
 }
 
@@ -54,6 +54,7 @@ export default function SplitContainer({
 
   const handleDividerRatioChange = useCallback(
     (delta: number) => {
+      if (!onRatioChange) return;
       const newRatio = Math.min(0.9, Math.max(0.1, ratio + delta));
       onRatioChange(leftPaneId, rightPaneId, newRatio);
     },
@@ -61,7 +62,7 @@ export default function SplitContainer({
   );
 
   const handleDividerDoubleClick = useCallback(() => {
-    onRatioChange(leftPaneId, rightPaneId, 0.5);
+    onRatioChange?.(leftPaneId, rightPaneId, 0.5);
   }, [leftPaneId, rightPaneId, onRatioChange]);
 
   return (

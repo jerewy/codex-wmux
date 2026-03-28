@@ -195,7 +195,7 @@ app.whenReady().then(() => {
             }
           }
           respond({ results });
-        })();
+        })().catch((err) => respondError(-32000, err.message));
         break;
       }
       case 'agent.spawn': {

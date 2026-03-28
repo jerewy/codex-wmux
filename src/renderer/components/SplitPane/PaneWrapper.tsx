@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { PaneId, SplitNode, SurfaceId } from '../../../shared/types';
 import TerminalPane from '../Terminal/TerminalPane';
 import BrowserPane from '../Browser/BrowserPane';
@@ -28,10 +28,11 @@ export default function PaneWrapper({ leaf, isFocused }: PaneWrapperProps) {
   const moveSurface = useStore((s) => s.moveSurface);
   const shortcuts = useStore((s) => s.shortcuts);
 
-  const surfaceIds = surfaces.map((s) => s.id);
+  const surfaceIds = useMemo(() => surfaces.map((s) => s.id), [surfaces]);
 
-  const hasUnread = notifications.some(
-    (n) => !n.read && surfaceIds.includes(n.surfaceId as SurfaceId),
+  const hasUnread = useMemo(
+    () => notifications.some((n) => !n.read && surfaceIds.includes(n.surfaceId as SurfaceId)),
+    [notifications, surfaceIds],
   );
 
   // ─── Find bar state ───────────────────────────────────────────────────────
@@ -42,14 +43,14 @@ export default function PaneWrapper({ leaf, isFocused }: PaneWrapperProps) {
 
   // Track "just fired" state for flash animation
   const [justFired, setJustFired] = useState(false);
-  const prevUnreadCount = useRef(
-    notifications.filter((n) => !n.read && surfaceIds.includes(n.surfaceId as SurfaceId)).length,
+  const unreadCount = useMemo(
+    () => notifications.filter((n) => !n.read && surfaceIds.includes(n.surfaceId as SurfaceId)).length,
+    [notifications, surfaceIds],
   );
+  const prevUnreadCount = useRef(unreadCount);
 
   useEffect(() => {
-    const currentCount = notifications.filter(
-      (n) => !n.read && surfaceIds.includes(n.surfaceId as SurfaceId),
-    ).length;
+    const currentCount = unreadCount;
 
     if (currentCount > prevUnreadCount.current) {
       setJustFired(true);
@@ -59,7 +60,7 @@ export default function PaneWrapper({ leaf, isFocused }: PaneWrapperProps) {
     }
 
     prevUnreadCount.current = currentCount;
-  }, [notifications, surfaceIds]);
+  }, [unreadCount]);
 
   // When pane receives focus, mark all surfaces as read
   useEffect(() => {

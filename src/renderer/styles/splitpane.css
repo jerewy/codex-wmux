@@ -6,16 +6,16 @@
 }
 .split-container--horizontal { flex-direction: row; }
 .split-container--vertical { flex-direction: column; }
-.split-child { overflow: hidden; position: relative; min-width: 80px; min-height: 80px; }
+.split-child { overflow: hidden; position: relative; min-width: 0; min-height: 0; }
 .split-divider { flex-shrink: 0; background: transparent; position: relative; z-index: 10; }
 .split-divider--horizontal { width: 6px; cursor: col-resize; }
 .split-divider--vertical { height: 6px; cursor: row-resize; }
-.split-divider__line { position: absolute; background: rgba(255, 255, 255, 0.06); transition: background 0.15s ease; }
+.split-divider__line { position: absolute; background: rgba(255, 255, 255, 0.06); transition: background 0.15s ease, transform 0.15s ease; will-change: transform, background; }
 .split-divider:hover .split-divider__line { background: rgba(0, 145, 255, 0.4); }
-.split-divider--horizontal .split-divider__line { width: 1px; height: 100%; left: 50%; transform: translateX(-50%); }
-.split-divider--vertical .split-divider__line { height: 1px; width: 100%; top: 50%; transform: translateY(-50%); }
-.split-divider:hover .split-divider--horizontal .split-divider__line { width: 2px; }
-.split-divider:hover .split-divider--vertical .split-divider__line { height: 2px; }
+.split-divider--horizontal .split-divider__line { width: 2px; height: 100%; left: 50%; transform: translateX(-50%) scaleX(0.5); }
+.split-divider--vertical .split-divider__line { height: 2px; width: 100%; top: 50%; transform: translateY(-50%) scaleY(0.5); }
+.split-divider:hover .split-divider--horizontal .split-divider__line { transform: translateX(-50%) scaleX(1); }
+.split-divider:hover .split-divider--vertical .split-divider__line { transform: translateY(-50%) scaleY(1); }
 .pane-wrapper {
   position: relative;
   width: 100%;
