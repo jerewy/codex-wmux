@@ -70,7 +70,18 @@ export function useTerminal({ surfaceId, shell, cwd }: UseTerminalOptions = {}):
 
     // Create and load addons
     const fitAddon = new FitAddon();
-    const webLinksAddon = new WebLinksAddon();
+    const webLinksAddon = new WebLinksAddon((_event, uri) => {
+      // Intercept localhost URLs → open in browser panel instead of system browser
+      try {
+        const url = new URL(uri);
+        if (url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '0.0.0.0') {
+          window.wmux?.browser?.navigate?.('', uri);
+          return;
+        }
+      } catch {}
+      // Non-localhost URLs → open in system browser
+      window.wmux?.system?.openExternal?.(uri);
+    });
     const searchAddon = new SearchAddon();
     const unicode11Addon = new Unicode11Addon();
     const imageAddon = new ImageAddon();
