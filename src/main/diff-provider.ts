@@ -36,7 +36,7 @@ async function isGitRepo(cwd: string): Promise<boolean> {
 }
 
 export async function getChangedFiles(cwd: string): Promise<ChangedFile[]> {
-  if (!cwd) return [];
+  if (!cwd) cwd = process.cwd();
   if (!await isGitRepo(cwd)) return [];
 
   // -unormal (not -uall) to avoid OOM on repos with large untracked dirs
@@ -76,7 +76,8 @@ export async function getChangedFiles(cwd: string): Promise<ChangedFile[]> {
 const MAX_UNTRACKED_SIZE = 1_000_000; // 1MB
 
 export async function getFileDiff(cwd: string, file: string): Promise<string> {
-  if (!cwd || !file) return '';
+  if (!file) return '';
+  if (!cwd) cwd = process.cwd();
   if (!await isGitRepo(cwd)) return '';
 
   // Try diff against HEAD (staged + unstaged)

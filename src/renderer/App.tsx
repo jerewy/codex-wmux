@@ -348,7 +348,7 @@ export default function App() {
       });
 
       // Auto-open diff tab in the BOTTOM pane when Claude edits/writes files
-      if ((event.tool === 'Edit' || event.tool === 'Write') && event.file) {
+      if (event.tool === 'Edit' || event.tool === 'Write') {
         const ws = state.workspaces.find(w => w.id === wsId);
         if (ws) {
           const bottomPaneId = findBottomPane(ws.splitTree);
@@ -365,28 +365,10 @@ export default function App() {
     return unsub;
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Clear stale hook activity after 4 seconds of no hooks.
-  // Runs every 2 seconds for responsive cleanup — tool labels disappear
-  // quickly once Claude stops using tools, instead of lingering for 10+ seconds.
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setHookActivity(prev => {
-        if (Object.keys(prev).length === 0) return prev;
-        const now = Date.now();
-        const next: typeof prev = {};
-        let changed = false;
-        for (const [k, v] of Object.entries(prev)) {
-          if (now - v.lastSeen < 4000) {
-            next[k] = v;
-          } else {
-            changed = true;
-          }
-        }
-        return changed ? next : prev;
-      });
-    }, 2000);
-    return () => clearInterval(timer);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // NOTE: hookActivity entries are intentionally kept forever (not cleaned up).
+  // WorkspaceRow uses the lastSeen timestamp + TTL to decide what to display.
+  // Keeping stale entries lets us distinguish "Claude was active but stopped"
+  // (idle) from "a regular shell command is running" (no hookActivity at all).
 
   // Listen for Claude Code activity parsed from terminal output
   useEffect(() => {

@@ -80,18 +80,23 @@ export default function DiffPane({ surfaceId, cwd }: DiffPaneProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  const prevCwdRef = useRef<string | undefined>(undefined);
   const selectedFileRef = useRef(selectedFile);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const lastFilesKeyRef = useRef('');
+  const lastDiffRawRef = useRef('');
   selectedFileRef.current = selectedFile;
 
   const loadFiles = useCallback(async () => {
     try {
       const result = await window.wmux?.diff?.getFiles(cwd || '');
       if (result?.files) {
-        setFiles(result.files);
+        const newFiles = result.files as ChangedFile[];
+        const newKey = newFiles.map(f => `${f.path}|${f.status}|${f.additions}|${f.deletions}`).join('\n');
+        if (newKey !== lastFilesKeyRef.current) {
+          lastFilesKeyRef.current = newKey;
+          setFiles(newFiles);
+        }
         setError(null);
-        return result.files as ChangedFile[];
+        return newFiles;
       }
     } catch (err: any) {
       setError(err.message || 'Failed to load changed files');
@@ -105,60 +110,76 @@ export default function DiffPane({ surfaceId, cwd }: DiffPaneProps) {
     try {
       const result = await window.wmux?.diff?.getFileDiff(cwd || '', file);
       if (result?.diff !== undefined) {
-        setHunks(parseDiff(result.diff));
-        // Scroll to top when loading new file
-        contentRef.current?.scrollTo(0, 0);
+        if (result.diff !== lastDiffRawRef.current) {
+          lastDiffRawRef.current = result.diff;
+          setHunks(parseDiff(result.diff));
+        }
       }
     } catch {
+      lastDiffRawRef.current = '';
       setHunks([]);
     }
   }, [cwd]);
 
-  // Load on mount and whenever cwd changes
+  // Poll git status every 2 seconds (~50ms per git status call)
+  // This replaces the old mount-only load — ensures diffs always stay fresh
   useEffect(() => {
-    // Skip reload if cwd hasn't actually changed (but always run on mount)
-    if (prevCwdRef.current !== undefined && prevCwdRef.current === cwd) return;
-    prevCwdRef.current = cwd;
-    (async () => {
+    lastFilesKeyRef.current = '';
+    lastDiffRawRef.current = '';
+    setLoading(true);
+
+    const poll = async () => {
       const loaded = await loadFiles();
-      if (loaded.length > 0) {
+      if (loaded.length > 0 && !selectedFileRef.current) {
         setSelectedFile(loaded[0].path);
       }
-    })();
-  }, [loadFiles, cwd]);
+      if (selectedFileRef.current) {
+        loadDiff(selectedFileRef.current);
+      }
+    };
 
-  // Load diff when file is selected
+    poll();
+    const id = setInterval(poll, 2000);
+    return () => clearInterval(id);
+  }, [loadFiles, loadDiff]);
+
+  // Load diff + scroll to top when user selects a file
   useEffect(() => {
-    if (selectedFile) loadDiff(selectedFile);
+    if (!selectedFile) return;
+    lastDiffRawRef.current = '';
+    loadDiff(selectedFile);
+    contentRef.current?.scrollTo(0, 0);
   }, [selectedFile, loadDiff]);
 
-  // Listen for diff updates (from Claude Code hooks via main process)
-  // Uses refs to avoid re-subscribing on every file selection
+  // Listen for immediate updates from Claude Code hooks (faster than polling)
   useEffect(() => {
     if (!window.wmux?.diff?.onUpdate) return;
+    let debounce: ReturnType<typeof setTimeout>;
     const unsub = window.wmux.diff.onUpdate((data: { file?: string }) => {
-      // Debounce: rapid Claude edits don't spawn 20+ git processes
-      clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(() => {
+      clearTimeout(debounce);
+      debounce = setTimeout(() => {
+        if (data?.file) setSelectedFile(data.file);
+        lastFilesKeyRef.current = '';
+        lastDiffRawRef.current = '';
         loadFiles().then((loaded) => {
-          if (data?.file) {
-            setSelectedFile(data.file);
-          } else if (loaded.length > 0 && !selectedFileRef.current) {
-            // Auto-select first file if nothing was selected yet
+          if (loaded.length > 0 && !selectedFileRef.current) {
             setSelectedFile(loaded[0].path);
-          } else if (selectedFileRef.current) {
+          }
+          if (selectedFileRef.current) {
             loadDiff(selectedFileRef.current);
           }
         });
       }, 300);
     });
     return () => {
-      clearTimeout(debounceRef.current);
+      clearTimeout(debounce);
       unsub();
     };
   }, [loadFiles, loadDiff]);
 
   const handleRefresh = useCallback(async () => {
+    lastFilesKeyRef.current = '';
+    lastDiffRawRef.current = '';
     setLoading(true);
     const loaded = await loadFiles();
     if (selectedFile) {

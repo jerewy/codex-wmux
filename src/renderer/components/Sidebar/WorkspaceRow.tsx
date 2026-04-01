@@ -121,12 +121,24 @@ export default function WorkspaceRow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wsActivity, hookActivity, tick]);
 
+  // ── Detect "Claude was active but stopped" (shell still says running) ──
+  const claudeIsIdle = useMemo(() => {
+    if (workspace.shellState !== 'running') return false;
+    if (!hookActivity) return false;
+    const now = Date.now();
+    return now - hookActivity.lastSeen >= ACTIVITY_TTL;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspace.shellState, hookActivity, tick]);
+
   // ── Status text: tool activity > shell state > default ──
   const statusText = useMemo(() => {
     // Priority 1: Claude is actively using a tool
     if (currentToolLabel) return currentToolLabel;
 
-    // Priority 2: Shell state from shell integration
+    // Priority 2: Claude was working but stopped → idle, not "Running"
+    if (claudeIsIdle) return 'Idle';
+
+    // Priority 3: Shell state from shell integration
     const state = workspace.shellState;
     if (state === 'running') return 'Running';
     if (state === 'interrupted') return 'Interrupted';
@@ -136,22 +148,23 @@ export default function WorkspaceRow({
         : 'Idle';
     }
 
-    // Priority 3: Notification text without shell state
+    // Priority 4: Notification text without shell state
     if (workspace.notificationText) return workspace.notificationText;
 
-    // Priority 4: Default — always show something
+    // Priority 5: Default — always show something
     return 'Idle';
-  }, [currentToolLabel, workspace.shellState, workspace.notificationText]);
+  }, [currentToolLabel, claudeIsIdle, workspace.shellState, workspace.notificationText]);
 
   // ── Status color class ──
   const statusClass = useMemo(() => {
     if (currentToolLabel) return 'workspace-row__status--working';
+    if (claudeIsIdle) return 'workspace-row__status--idle';
     const state = workspace.shellState;
     if (state === 'running') return 'workspace-row__status--running';
     if (state === 'interrupted') return 'workspace-row__status--interrupted';
     if (state === 'idle') return 'workspace-row__status--done';
     return 'workspace-row__status--idle';
-  }, [currentToolLabel, workspace.shellState]);
+  }, [currentToolLabel, claudeIsIdle, workspace.shellState]);
 
   // ── Context line: "branch* · ~/path/to/dir" ──
   const contextLine = useMemo(() => {
@@ -172,11 +185,12 @@ export default function WorkspaceRow({
   // ── State dot class — pulsing when Claude is active ──
   const stateDotClass = useMemo(() => {
     if (isClaudeActive) return 'workspace-row__state-dot--running';
+    if (claudeIsIdle) return 'workspace-row__state-dot--idle';
     if (workspace.shellState === 'running') return 'workspace-row__state-dot--running';
     if (workspace.shellState === 'interrupted') return 'workspace-row__state-dot--interrupted';
     if (workspace.shellState === 'idle') return 'workspace-row__state-dot--idle';
     return '';
-  }, [isClaudeActive, workspace.shellState]);
+  }, [isClaudeActive, claudeIsIdle, workspace.shellState]);
 
   return (
     <div

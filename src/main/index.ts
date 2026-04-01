@@ -329,15 +329,18 @@ app.whenReady().then(() => {
         BrowserWindow.getAllWindows().forEach(w => {
           if (!w.isDestroyed()) w.webContents.send(IPC_CHANNELS.HOOK_EVENT, request.params);
         });
-        // When Edit/Write hooks include a file path, also push diff update.
+        // Always push diff update for Edit/Write hooks (even without file path).
         // Delay slightly so the renderer has time to mount the DiffPane
         // (HOOK_EVENT triggers diff tab creation; DIFF_UPDATE needs to arrive after mount).
-        if (request.params.file && (request.params.tool === 'Edit' || request.params.tool === 'Write')) {
-          setTimeout(() => {
-            BrowserWindow.getAllWindows().forEach(w => {
-              if (!w.isDestroyed()) w.webContents.send(IPC_CHANNELS.DIFF_UPDATE, { file: request.params.file });
-            });
-          }, 150);
+        if (request.params.tool === 'Edit' || request.params.tool === 'Write') {
+          // Stagger updates: 500ms for immediate feedback, 2s to catch slower writes
+          for (const delay of [500, 2000]) {
+            setTimeout(() => {
+              BrowserWindow.getAllWindows().forEach(w => {
+                if (!w.isDestroyed()) w.webContents.send(IPC_CHANNELS.DIFF_UPDATE, { file: request.params.file || '' });
+              });
+            }, delay);
+          }
         }
         respond({ ok: true });
         break;
