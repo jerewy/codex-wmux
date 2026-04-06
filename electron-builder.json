@@ -13,11 +13,13 @@
     "!docs/**/*",
     "!tests/**/*"
   ],
+  "asarUnpack": [
+    "**/*.node"
+  ],
   "win": {
     "icon": "resources/icons/icon.ico",
     "target": [
-      { "target": "nsis", "arch": ["x64"] },
-      { "target": "portable", "arch": ["x64"] }
+      { "target": "dir", "arch": ["x64"] }
     ]
   },
   "nsis": {
