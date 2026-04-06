@@ -5,6 +5,7 @@ import os from 'os';
 const APPDATA_DIR = path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), 'wmux');
 const SESSIONS_DIR = path.join(APPDATA_DIR, 'sessions');
 const SESSION_FILE = path.join(SESSIONS_DIR, 'session.json');
+const VERSION_FILE = path.join(APPDATA_DIR, 'app-version.txt');
 
 export interface SessionData {
   version: 1;
@@ -62,6 +63,19 @@ export function loadSession(): SessionData | null {
 
 export function getSessionPath(): string {
   return SESSION_FILE;
+}
+
+/** Returns true if the app version changed (or first launch). Clears stale auto-save. */
+export function handleVersionChange(currentVersion: string): boolean {
+  ensureDirectories();
+  try {
+    const saved = fs.existsSync(VERSION_FILE) ? fs.readFileSync(VERSION_FILE, 'utf-8').trim() : '';
+    if (saved === currentVersion) return false;
+    // Version changed — clear auto-save so users get a clean Session 1
+    try { if (fs.existsSync(SESSION_FILE)) fs.unlinkSync(SESSION_FILE); } catch {}
+    fs.writeFileSync(VERSION_FILE, currentVersion, 'utf-8');
+    return true;
+  } catch { return false; }
 }
 
 const SAVED_DIR = path.join(APPDATA_DIR, 'sessions', 'saved');

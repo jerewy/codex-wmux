@@ -122,6 +122,9 @@ export class CDPProxy {
       console.log('[wmux] CDP proxy: client connected');
     });
 
+    // Safety net: prevent 'error' events from becoming uncaught exceptions
+    this.server.on('error', () => {});
+
     // Try ports 9222-9230
     for (let p = DEFAULT_PORT; p <= MAX_PORT; p++) {
       try {

@@ -7,7 +7,7 @@ import { GitPoller } from './git-poller';
 import { PrPoller } from './pr-poller';
 import { CDPProxy } from './cdp-proxy';
 import { IPC_CHANNELS } from '../shared/types';
-import { loadSession, saveSession, SessionData } from './session-persistence';
+import { loadSession, saveSession, handleVersionChange, SessionData } from './session-persistence';
 import { WindowManager } from './window-manager';
 import { initAutoUpdater } from './updater';
 import { ensureClaudeContext, ensureClaudeHooks, ensureChromeDevtoolsConfig } from './claude-context';
@@ -85,6 +85,9 @@ app.whenReady().then(() => {
 
   registerIpcHandlers(windowManager, cdpProxy);
 
+  // Clear stale session data on version change (clean start for upgrades/fresh installs)
+  handleVersionChange(app.getVersion());
+
   // Attempt to restore last saved window bounds
   const savedSession = loadSession();
   const savedBounds = savedSession?.windows?.[0]?.bounds;
@@ -100,7 +103,7 @@ app.whenReady().then(() => {
 
   // Start named pipe server
   pipeServer.start();
-  cdpProxy.start();
+  cdpProxy.start().catch(() => {}); // CDP proxy is optional — don't crash if ports are busy
 
   portScanner.onResults((portsByPid) => {
     BrowserWindow.getAllWindows().forEach(win => {
