@@ -12,34 +12,33 @@ AGENT_ID="${WMUX_AGENT_ID:-}"
 [ -z "$AGENT_ID" ] && exit 0
 
 EXIT_CODE="${CLAUDE_EXIT_CODE:-0}"
+NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
 if [ "$EXIT_CODE" = "0" ]; then
-  update_state "$ORCH_DIR" \
-    "(.waves[].agents[] | select(.id == \"$AGENT_ID\")) |= (.status = \"completed\" | .exitCode = 0 | .finishedAt = \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\")"
+  update_agent "$ORCH_DIR" "$AGENT_ID" "status=completed" "exitCode=0" "finishedAt=$NOW"
 else
-  update_state "$ORCH_DIR" \
-    "(.waves[].agents[] | select(.id == \"$AGENT_ID\")) |= (.status = \"failed\" | .exitCode = $EXIT_CODE | .finishedAt = \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\")"
+  update_agent "$ORCH_DIR" "$AGENT_ID" "status=failed" "exitCode=$EXIT_CODE" "finishedAt=$NOW"
 fi
 
-WAVE_IDX=$(jq -r ".waves | to_entries[] | select(.value.agents[] | .id == \"$AGENT_ID\") | .key" "$ORCH_DIR/state.json")
+WAVE_IDX=$(node "$JSON_TOOL" query "$ORCH_DIR/state.json" wave-of-agent "$AGENT_ID" 2>/dev/null)
 
-if wave_complete "$ORCH_DIR" "$WAVE_IDX"; then
-  update_state "$ORCH_DIR" ".waves[$WAVE_IDX].status = \"completed\""
+if [ -n "$WAVE_IDX" ] && wave_complete "$ORCH_DIR" "$WAVE_IDX"; then
+  update_state "$ORCH_DIR" ".waves[$WAVE_IDX].status" "completed"
 
   if all_waves_done "$ORCH_DIR"; then
     REVIEWER_STATUS=$(read_state "$ORCH_DIR" '.reviewer.status')
     if [ "$REVIEWER_STATUS" = "pending" ]; then
-      update_state "$ORCH_DIR" '.reviewer.status = "ready"'
+      update_state "$ORCH_DIR" '.reviewer.status' 'ready'
       if command -v wmux &>/dev/null; then
         wmux notify "All agents complete. Starting reviewer..." 2>/dev/null || true
       fi
     else
-      update_state "$ORCH_DIR" '.status = "completed"'
+      update_state "$ORCH_DIR" '.status' 'completed'
     fi
   else
     NEXT_WAVE=$(next_pending_wave "$ORCH_DIR")
     if [ -n "$NEXT_WAVE" ]; then
-      update_state "$ORCH_DIR" ".waves[$NEXT_WAVE].status = \"running\""
+      update_state "$ORCH_DIR" ".waves[$NEXT_WAVE].status" "running"
       bash "$SCRIPT_DIR/spawn-agents.sh" "$ORCH_DIR" "$NEXT_WAVE"
     fi
   fi

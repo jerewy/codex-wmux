@@ -142,7 +142,7 @@ wmux-orchestrator/
 
 - **Claude Code** -- the plugin runs inside Claude Code's plugin system
 - **bash** -- all scripts target bash (available on Windows via Git Bash/MSYS2, which Claude Code uses by default)
-- **jq** -- used by scripts for JSON state manipulation
+- **Node.js** -- used by scripts for JSON state manipulation (always available since Claude Code runs on Node.js)
 - **wmux** (optional) -- required for the full multi-pane visual experience; without it, the plugin falls back to native Claude Code subagents
 
 ## Links

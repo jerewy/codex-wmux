@@ -7,9 +7,9 @@ source "$SCRIPT_DIR/orchestration-state.sh"
 ORCH_DIR=$(find_active_orch)
 [ -z "$ORCH_DIR" ] && exit 0
 
-RUNNING=$(jq '[.waves[].agents[] | select(.status == "running")] | length' "$ORCH_DIR/state.json" 2>/dev/null)
+RUNNING=$(node "$JSON_TOOL" query "$ORCH_DIR/state.json" count-agents-by-status running 2>/dev/null)
 
-if [ "$RUNNING" -gt 0 ]; then
+if [ "$RUNNING" -gt 0 ] 2>/dev/null; then
   echo "WARNING: wmux orchestration in progress with $RUNNING active agent(s)."
   echo "Exiting now will leave agents running unmonitored."
 fi

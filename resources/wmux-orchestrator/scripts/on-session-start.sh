@@ -8,7 +8,7 @@ ORCH_DIR=$(find_active_orch)
 if [ -n "$ORCH_DIR" ]; then
   ORCH_ID=$(read_state "$ORCH_DIR" '.id')
   TASK=$(read_state "$ORCH_DIR" '.task')
-  RUNNING=$(jq '[.waves[].agents[] | select(.status == "running")] | length' "$ORCH_DIR/state.json" 2>/dev/null)
+  RUNNING=$(node "$JSON_TOOL" query "$ORCH_DIR/state.json" count-agents-by-status running 2>/dev/null)
   echo "Found interrupted orchestration: $ORCH_ID"
   echo "Task: $TASK"
   echo "Running agents: $RUNNING"

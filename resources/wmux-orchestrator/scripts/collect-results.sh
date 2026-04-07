@@ -11,14 +11,15 @@ ORCH_DIR="$1"
 echo "# Orchestration Results Summary"
 echo ""
 
-WAVE_COUNT=$(jq '.waves | length' "$ORCH_DIR/state.json")
+WAVE_COUNT=$(node "$JSON_TOOL" query "$ORCH_DIR/state.json" wave-count 2>/dev/null)
 
 for i in $(seq 0 $((WAVE_COUNT - 1))); do
   echo "## Wave $((i + 1))"
   echo ""
 
-  jq -r ".waves[$i].agents[] | .id" "$ORCH_DIR/state.json" | while IFS= read -r agent_id; do
-    LABEL=$(jq -r ".waves[$i].agents[] | select(.id == \"$agent_id\") | .label" "$ORCH_DIR/state.json")
+  node "$JSON_TOOL" query "$ORCH_DIR/state.json" wave-agent-ids "$i" | while IFS= read -r agent_id; do
+    [ -z "$agent_id" ] && continue
+    LABEL=$(node "$JSON_TOOL" query "$ORCH_DIR/state.json" agent-label "$agent_id" 2>/dev/null)
     RESULT_FILE="$ORCH_DIR/agent-${agent_id}-result.md"
 
     echo "### $LABEL"

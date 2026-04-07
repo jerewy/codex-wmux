@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
 # orchestration-state.sh — State management library for wmux orchestrations.
 # Source this file in other scripts: source "${CLAUDE_PLUGIN_ROOT}/scripts/orchestration-state.sh"
+#
+# Uses json-tool.js (Node.js) instead of jq for Windows compatibility.
+# Node.js is always available because Claude Code runs on it.
 
 ORCH_BASE="${TMPDIR:-/tmp}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+JSON_TOOL="$SCRIPT_DIR/json-tool.js"
 
 # Find the active orchestration directory (most recent state.json with status "running")
 find_active_orch() {
@@ -13,7 +18,7 @@ find_active_orch() {
     local state="$dir/state.json"
     [ -f "$state" ] || continue
     local status
-    status=$(jq -r '.status' "$state" 2>/dev/null)
+    status=$(node "$JSON_TOOL" get "$state" .status 2>/dev/null)
     if [ "$status" = "running" ]; then
       local mtime
       mtime=$(stat -c %Y "$state" 2>/dev/null || stat -f %m "$state" 2>/dev/null || echo 0)
@@ -59,20 +64,43 @@ release_lock() {
   rm -f "$dir/state.lock"
 }
 
-# Read state JSON field using jq
+# Read state JSON field
 read_state() {
   local dir="$1"
   local query="$2"
-  jq -r "$query" "$dir/state.json" 2>/dev/null
+  node "$JSON_TOOL" get "$dir/state.json" "$query" 2>/dev/null
 }
 
-# Update state JSON using jq
+# Update state JSON — sets a single field at a dot path
+# Usage: update_state <dir> <dotPath> <value>
+# json-tool.js writes in-place, so no temp file / race condition.
 update_state() {
   local dir="$1"
-  local jq_expr="$2"
+  local path="$2"
+  local value="$3"
   acquire_lock "$dir"
-  local tmp="$dir/state.tmp.json"
-  jq "$jq_expr" "$dir/state.json" > "$tmp" && mv "$tmp" "$dir/state.json"
+  node "$JSON_TOOL" set "$dir/state.json" "$path" "$value"
+  release_lock "$dir"
+}
+
+# Increment a numeric field
+# Usage: inc_state <dir> <dotPath>
+inc_state() {
+  local dir="$1"
+  local path="$2"
+  acquire_lock "$dir"
+  node "$JSON_TOOL" inc "$dir/state.json" "$path"
+  release_lock "$dir"
+}
+
+# Update multiple fields on an agent at once
+# Usage: update_agent <dir> <agentId> <field=value>...
+update_agent() {
+  local dir="$1"
+  local agent_id="$2"
+  shift 2
+  acquire_lock "$dir"
+  node "$JSON_TOOL" update-agent "$dir/state.json" "$agent_id" "$@"
   release_lock "$dir"
 }
 
@@ -80,21 +108,29 @@ update_state() {
 wave_complete() {
   local dir="$1"
   local wave_idx="$2"
-  local pending
-  pending=$(jq -r ".waves[$wave_idx].agents[] | select(.status != \"completed\" and .status != \"failed\") | .id" "$dir/state.json" 2>/dev/null)
-  [ -z "$pending" ]
+  local result
+  result=$(node "$JSON_TOOL" query "$dir/state.json" wave-complete "$wave_idx" 2>/dev/null)
+  [ "$result" = "true" ]
 }
 
 # Get the next pending wave index
 next_pending_wave() {
   local dir="$1"
-  jq -r '.waves | to_entries[] | select(.value.status == "pending") | .key' "$dir/state.json" 2>/dev/null | head -1
+  node "$JSON_TOOL" query "$dir/state.json" next-pending-wave 2>/dev/null
 }
 
 # Check if all waves are done
 all_waves_done() {
   local dir="$1"
-  local pending
-  pending=$(jq -r '.waves[] | select(.status == "pending" or .status == "running") | .index' "$dir/state.json" 2>/dev/null)
-  [ -z "$pending" ]
+  local result
+  result=$(node "$JSON_TOOL" query "$dir/state.json" all-waves-done 2>/dev/null)
+  [ "$result" = "true" ]
+}
+
+# Parse a JSON string and extract a field (replaces: echo "$json" | jq -r '.field')
+# Usage: parse_json "$json_string" ".field"
+parse_json() {
+  local json_str="$1"
+  local path="$2"
+  node "$JSON_TOOL" parse-json "$json_str" "$path" 2>/dev/null
 }
