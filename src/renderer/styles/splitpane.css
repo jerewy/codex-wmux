@@ -152,3 +152,87 @@
 .surface-tab--agent .surface-tab__label {
   color: rgba(0, 145, 255, 0.8);
 }
+
+/* ─── Drag and drop ──────────────────────────────────────────────────────── */
+
+.surface-tab--dragging {
+  opacity: 0.3;
+  border: 1px dashed #6c7086;
+}
+
+.surface-tab--insert-before::before {
+  content: '';
+  position: absolute;
+  left: -1px;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  background: #89b4fa;
+  border-radius: 1px;
+  z-index: 10;
+}
+
+.surface-tab--insert-after::after {
+  content: '';
+  position: absolute;
+  right: -1px;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  background: #89b4fa;
+  border-radius: 1px;
+  z-index: 10;
+}
+
+.surface-tab {
+  position: relative;
+}
+
+.pane-wrapper__drop-zones {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  display: none;
+}
+
+.pane-wrapper--drag-active .pane-wrapper__drop-zones {
+  display: block;
+  pointer-events: auto;
+}
+
+.pane-drop-zone {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.1s ease, border-color 0.1s ease;
+  border: 2px solid transparent;
+}
+
+.pane-drop-zone--left   { top: 0; left: 0; bottom: 0; width: 25%; }
+.pane-drop-zone--right  { top: 0; right: 0; bottom: 0; width: 25%; }
+.pane-drop-zone--top    { top: 0; left: 25%; right: 25%; height: 25%; }
+.pane-drop-zone--bottom { bottom: 0; left: 25%; right: 25%; height: 25%; }
+.pane-drop-zone--center { top: 25%; left: 25%; right: 25%; bottom: 25%; }
+
+.pane-drop-zone--left:hover,
+.pane-drop-zone--right:hover,
+.pane-drop-zone--top:hover,
+.pane-drop-zone--bottom:hover {
+  background: rgba(137, 180, 250, 0.15);
+}
+.pane-drop-zone--left:hover   { border-right-color: #89b4fa; }
+.pane-drop-zone--right:hover  { border-left-color: #89b4fa; }
+.pane-drop-zone--top:hover    { border-bottom-color: #89b4fa; }
+.pane-drop-zone--bottom:hover { border-top-color: #89b4fa; }
+
+.pane-drop-zone--center:hover {
+  background: rgba(166, 227, 161, 0.12);
+  border-color: #a6e3a1;
+}
+
+body.wmux-dragging,
+body.wmux-dragging * {
+  cursor: grabbing !important;
+}

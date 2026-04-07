@@ -1,7 +1,7 @@
 import { StateCreator } from 'zustand';
 import { v4 as uuid } from 'uuid';
 import { WorkspaceId, PaneId, SurfaceId, SurfaceRef, SurfaceType } from '../../shared/types';
-import { findLeaf, removeLeaf } from './split-utils';
+import { findLeaf, removeLeaf, splitNode } from './split-utils';
 import { WorkspaceSlice } from './workspace-slice';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -28,6 +28,18 @@ export interface SurfaceSlice {
 
   /** Move a surface from one pane to another (drag-and-drop) */
   moveSurface: (workspaceId: WorkspaceId, sourcePaneId: PaneId, surfaceId: SurfaceId, targetPaneId: PaneId) => void;
+
+  /** Reorder a surface within the same pane (drag to new tab position) */
+  reorderSurface: (workspaceId: WorkspaceId, paneId: PaneId, surfaceId: SurfaceId, newIndex: number) => void;
+
+  /** Split a pane and move a surface into the new pane (drag to edge) */
+  splitAndMoveSurface: (
+    workspaceId: WorkspaceId,
+    targetPaneId: PaneId,
+    sourcePaneId: PaneId,
+    surfaceId: SurfaceId,
+    direction: 'left' | 'right' | 'up' | 'down',
+  ) => void;
 }
 
 // ─── Helper: update a leaf's surfaces in the split tree ──────────────────────
@@ -173,6 +185,72 @@ export const createSurfaceSlice: StateCreator<SliceState, [], [], SurfaceSlice> 
     const updatedTree = patchLeaf(ws.splitTree, paneId, { activeSurfaceIndex: clampedIndex });
     updateSplitTree(workspaceId, updatedTree);
   },
+
+  reorderSurface(workspaceId, paneId, surfaceId, newIndex) {
+    const { workspaces, updateSplitTree } = get();
+    const ws = workspaces.find((w) => w.id === workspaceId);
+    if (!ws) return;
+
+    const leaf = findLeaf(ws.splitTree, paneId);
+    if (!leaf) return;
+
+    const currentIndex = leaf.surfaces.findIndex((s) => s.id === surfaceId);
+    if (currentIndex === -1 || currentIndex === newIndex) return;
+
+    const newSurfaces = [...leaf.surfaces];
+    const [moved] = newSurfaces.splice(currentIndex, 1);
+    newSurfaces.splice(newIndex, 0, moved);
+
+    const updatedTree = patchLeaf(ws.splitTree, paneId, {
+      surfaces: newSurfaces,
+      activeSurfaceIndex: newIndex,
+    });
+
+    updateSplitTree(workspaceId, updatedTree);
+  },
+
+  splitAndMoveSurface(workspaceId, targetPaneId, sourcePaneId, surfaceId, direction) {
+    const { workspaces, updateSplitTree } = get();
+    const ws = workspaces.find((w) => w.id === workspaceId);
+    if (!ws) return;
+
+    const splitDirection = (direction === 'left' || direction === 'right') ? 'horizontal' : 'vertical';
+
+    const newPaneId = `pane-${uuid()}` as PaneId;
+    let tree = splitNode(ws.splitTree, targetPaneId, newPaneId, 'terminal', splitDirection);
+
+    // splitNode puts new leaf as SECOND child. For left/up, swap children.
+    if (direction === 'left' || direction === 'up') {
+      tree = swapSplitChildren(tree, targetPaneId, newPaneId);
+    }
+
+    // Remove surface from source pane
+    const sourceLeaf = findLeaf(tree, sourcePaneId);
+    if (!sourceLeaf) return;
+
+    const surfaceIndex = sourceLeaf.surfaces.findIndex((s) => s.id === surfaceId);
+    if (surfaceIndex === -1) return;
+    const surface = sourceLeaf.surfaces[surfaceIndex];
+
+    const newSourceSurfaces = sourceLeaf.surfaces.filter((s) => s.id !== surfaceId);
+
+    if (newSourceSurfaces.length === 0) {
+      tree = removeLeaf(tree, sourcePaneId) ?? tree;
+    } else {
+      tree = patchLeaf(tree, sourcePaneId, {
+        surfaces: newSourceSurfaces,
+        activeSurfaceIndex: Math.min(sourceLeaf.activeSurfaceIndex, newSourceSurfaces.length - 1),
+      });
+    }
+
+    // Replace the new pane's auto-created surface with the dragged one
+    tree = patchLeaf(tree, newPaneId, {
+      surfaces: [surface],
+      activeSurfaceIndex: 0,
+    });
+
+    updateSplitTree(workspaceId, tree);
+  },
 });
 
 // ─── patchLeaf — immutable leaf update inside an arbitrary tree ───────────────
@@ -195,4 +273,26 @@ function patchLeaf(
 
   if (newLeft === left && newRight === right) return tree;
   return { ...tree, children: [newLeft, newRight] };
+}
+
+function swapSplitChildren(tree: SplitNode, paneIdA: PaneId, paneIdB: PaneId): SplitNode {
+  if (tree.type === 'leaf') return tree;
+
+  const [left, right] = tree.children;
+  const leftHasA = containsPane(left, paneIdA);
+  const rightHasB = containsPane(right, paneIdB);
+
+  if (leftHasA && rightHasB) {
+    return { ...tree, children: [right, left] };
+  }
+
+  const newLeft = swapSplitChildren(left, paneIdA, paneIdB);
+  const newRight = swapSplitChildren(right, paneIdA, paneIdB);
+  if (newLeft === left && newRight === right) return tree;
+  return { ...tree, children: [newLeft, newRight] };
+}
+
+function containsPane(node: SplitNode, paneId: PaneId): boolean {
+  if (node.type === 'leaf') return node.paneId === paneId;
+  return containsPane(node.children[0], paneId) || containsPane(node.children[1], paneId);
 }
