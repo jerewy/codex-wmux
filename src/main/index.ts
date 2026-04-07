@@ -1,5 +1,5 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
-import { registerIpcHandlers, cdpBridge, agentManager, setupAgentPtyForwarding } from './ipc-handlers';
+import { registerIpcHandlers, cdpBridge, agentManager, ptyManager, setupAgentPtyForwarding } from './ipc-handlers';
 import { distributeAgents } from './agent-manager';
 import { PipeServer } from './pipe-server';
 import { PortScanner } from './port-scanner';
@@ -165,10 +165,402 @@ app.whenReady().then(() => {
       case 'system.capabilities':
         respond({ protocols: ['v1', 'v2'], features: ['workspaces', 'splits', 'notifications'] });
         break;
-      case 'workspace.list':
-        // Will be filled in when workspace IPC is complete
-        respond({ workspaces: [] });
+      // ─── Workspace V2 handlers ──────────────────────────────────────────────
+      case 'workspace.create': {
+        (async () => {
+          try {
+            const win = BrowserWindow.getAllWindows()[0];
+            if (!win || win.isDestroyed()) { respondError(-32000, 'No window'); return; }
+            const result = await win.webContents.executeJavaScript(
+              `window.__wmux_createWorkspace?.(${JSON.stringify(request.params || {})})`
+            );
+            respond(result || { ok: true });
+          } catch (err: any) { respondError(-32000, err.message); }
+        })();
         break;
+      }
+      case 'workspace.close': {
+        (async () => {
+          try {
+            const win = BrowserWindow.getAllWindows()[0];
+            if (!win || win.isDestroyed()) { respondError(-32000, 'No window'); return; }
+            await win.webContents.executeJavaScript(
+              `window.__wmux_closeWorkspace?.(${JSON.stringify(request.params?.id || request.params?.workspaceId)})`
+            );
+            respond({ ok: true });
+          } catch (err: any) { respondError(-32000, err.message); }
+        })();
+        break;
+      }
+      case 'workspace.select': {
+        (async () => {
+          try {
+            const win = BrowserWindow.getAllWindows()[0];
+            if (!win || win.isDestroyed()) { respondError(-32000, 'No window'); return; }
+            await win.webContents.executeJavaScript(
+              `window.__wmux_selectWorkspace?.(${JSON.stringify(request.params?.id || request.params?.workspaceId)})`
+            );
+            respond({ ok: true });
+          } catch (err: any) { respondError(-32000, err.message); }
+        })();
+        break;
+      }
+      case 'workspace.rename': {
+        (async () => {
+          try {
+            const win = BrowserWindow.getAllWindows()[0];
+            if (!win || win.isDestroyed()) { respondError(-32000, 'No window'); return; }
+            await win.webContents.executeJavaScript(
+              `window.__wmux_renameWorkspace?.(${JSON.stringify(request.params?.id || request.params?.workspaceId)}, ${JSON.stringify(request.params?.title || '')})`
+            );
+            respond({ ok: true });
+          } catch (err: any) { respondError(-32000, err.message); }
+        })();
+        break;
+      }
+      case 'workspace.list': {
+        (async () => {
+          try {
+            const win = BrowserWindow.getAllWindows()[0];
+            if (!win || win.isDestroyed()) { respond({ workspaces: [] }); return; }
+            const workspaces = await win.webContents.executeJavaScript(
+              `window.__wmux_listWorkspaces?.()`
+            );
+            respond({ workspaces: workspaces || [] });
+          } catch (err: any) { respondError(-32000, err.message); }
+        })();
+        break;
+      }
+
+      // ─── Pane V2 handlers ──────────────────────────────────────────────────
+      case 'pane.split': {
+        (async () => {
+          try {
+            const win = BrowserWindow.getAllWindows()[0];
+            if (!win || win.isDestroyed()) { respondError(-32000, 'No window'); return; }
+            const result = await win.webContents.executeJavaScript(
+              `window.__wmux_splitPane?.(${JSON.stringify(request.params || {})})`
+            );
+            if (!result) { respondError(-32000, 'No active workspace or panes'); return; }
+            respond(result);
+          } catch (err: any) { respondError(-32000, err.message); }
+        })();
+        break;
+      }
+      case 'pane.close': {
+        (async () => {
+          try {
+            const win = BrowserWindow.getAllWindows()[0];
+            if (!win || win.isDestroyed()) { respondError(-32000, 'No window'); return; }
+            await win.webContents.executeJavaScript(
+              `window.__wmux_closePane?.(${JSON.stringify(request.params?.paneId)}, ${JSON.stringify(request.params?.workspaceId)})`
+            );
+            respond({ ok: true });
+          } catch (err: any) { respondError(-32000, err.message); }
+        })();
+        break;
+      }
+      case 'pane.focus': {
+        // Focus the first surface in the specified pane
+        (async () => {
+          try {
+            const win = BrowserWindow.getAllWindows()[0];
+            if (!win || win.isDestroyed()) { respondError(-32000, 'No window'); return; }
+            // Get pane's first surface and focus it
+            const panes = await win.webContents.executeJavaScript(
+              `window.__wmux_listPanes?.(${JSON.stringify(request.params?.workspaceId)})`
+            );
+            const pane = (panes || []).find((p: any) => p.paneId === request.params?.paneId);
+            if (pane && pane.surfaces.length > 0) {
+              await win.webContents.executeJavaScript(
+                `window.__wmux_focusSurface?.(${JSON.stringify(pane.surfaces[0].id)})`
+              );
+            }
+            respond({ ok: true });
+          } catch (err: any) { respondError(-32000, err.message); }
+        })();
+        break;
+      }
+      case 'pane.zoom': {
+        // Zoom toggles are UI-only; acknowledge for now
+        respond({ ok: true, note: 'Zoom toggle is a renderer-only action' });
+        break;
+      }
+      case 'pane.list': {
+        (async () => {
+          try {
+            const win = BrowserWindow.getAllWindows()[0];
+            if (!win || win.isDestroyed()) { respond({ panes: [] }); return; }
+            const panes = await win.webContents.executeJavaScript(
+              `window.__wmux_listPanes?.(${JSON.stringify(request.params?.workspaceId)})`
+            );
+            respond({ panes: panes || [] });
+          } catch (err: any) { respondError(-32000, err.message); }
+        })();
+        break;
+      }
+
+      // ─── System tree ──────────────────────────────────────────────────────
+      case 'system.tree': {
+        (async () => {
+          try {
+            const win = BrowserWindow.getAllWindows()[0];
+            if (!win || win.isDestroyed()) { respond({ tree: null }); return; }
+            const tree = await win.webContents.executeJavaScript(
+              `window.__wmux_getTree?.(${JSON.stringify(request.params?.workspaceId)})`
+            );
+            respond({ tree: tree || null });
+          } catch (err: any) { respondError(-32000, err.message); }
+        })();
+        break;
+      }
+
+      // ─── Surface V2 handlers ──────────────────────────────────────────────
+      case 'surface.create': {
+        (async () => {
+          try {
+            const win = BrowserWindow.getAllWindows()[0];
+            if (!win || win.isDestroyed()) { respondError(-32000, 'No window'); return; }
+            const result = await win.webContents.executeJavaScript(
+              `window.__wmux_createSurface?.(${JSON.stringify(request.params || {})})`
+            );
+            if (!result) { respondError(-32000, 'No active workspace or panes'); return; }
+            respond(result);
+          } catch (err: any) { respondError(-32000, err.message); }
+        })();
+        break;
+      }
+      case 'surface.close': {
+        (async () => {
+          try {
+            const win = BrowserWindow.getAllWindows()[0];
+            if (!win || win.isDestroyed()) { respondError(-32000, 'No window'); return; }
+            await win.webContents.executeJavaScript(
+              `window.__wmux_closeSurface?.(${JSON.stringify(request.params?.id || request.params?.surfaceId)}, ${JSON.stringify(request.params?.workspaceId)})`
+            );
+            respond({ ok: true });
+          } catch (err: any) { respondError(-32000, err.message); }
+        })();
+        break;
+      }
+      case 'surface.focus': {
+        (async () => {
+          try {
+            const win = BrowserWindow.getAllWindows()[0];
+            if (!win || win.isDestroyed()) { respondError(-32000, 'No window'); return; }
+            await win.webContents.executeJavaScript(
+              `window.__wmux_focusSurface?.(${JSON.stringify(request.params?.id || request.params?.surfaceId)}, ${JSON.stringify(request.params?.workspaceId)})`
+            );
+            respond({ ok: true });
+          } catch (err: any) { respondError(-32000, err.message); }
+        })();
+        break;
+      }
+      case 'surface.list': {
+        (async () => {
+          try {
+            const win = BrowserWindow.getAllWindows()[0];
+            if (!win || win.isDestroyed()) { respond({ surfaces: [] }); return; }
+            const surfaces = await win.webContents.executeJavaScript(
+              `window.__wmux_listSurfaces?.(${JSON.stringify(request.params?.workspaceId)})`
+            );
+            respond({ surfaces: surfaces || [] });
+          } catch (err: any) { respondError(-32000, err.message); }
+        })();
+        break;
+      }
+
+      // ─── Terminal I/O V2 handlers ─────────────────────────────────────────
+      case 'surface.send_text': {
+        (async () => {
+          try {
+            const surfaceId = request.params?.surfaceId || request.params?.id;
+            if (!surfaceId) {
+              // Use active surface if none specified
+              const win = BrowserWindow.getAllWindows()[0];
+              if (!win || win.isDestroyed()) { respondError(-32000, 'No window'); return; }
+              const activeId = await win.webContents.executeJavaScript(
+                `window.__wmux_getActiveSurfaceId?.()`
+              );
+              if (!activeId) { respondError(-32000, 'No active surface'); return; }
+              ptyManager.write(activeId, request.params?.text || '');
+            } else {
+              ptyManager.write(surfaceId, request.params?.text || '');
+            }
+            respond({ ok: true });
+          } catch (err: any) { respondError(-32000, err.message); }
+        })();
+        break;
+      }
+      case 'surface.send_key': {
+        (async () => {
+          try {
+            const surfaceId = request.params?.surfaceId || request.params?.id;
+            let key = request.params?.key || '';
+            // Apply modifiers
+            if (request.params?.ctrl) {
+              // Convert to control character (Ctrl+A = \x01, etc.)
+              const code = key.toUpperCase().charCodeAt(0) - 64;
+              if (code > 0 && code < 27) key = String.fromCharCode(code);
+            }
+            if (request.params?.alt) key = '\x1b' + key;
+
+            if (!surfaceId) {
+              const win = BrowserWindow.getAllWindows()[0];
+              if (!win || win.isDestroyed()) { respondError(-32000, 'No window'); return; }
+              const activeId = await win.webContents.executeJavaScript(
+                `window.__wmux_getActiveSurfaceId?.()`
+              );
+              if (!activeId) { respondError(-32000, 'No active surface'); return; }
+              ptyManager.write(activeId, key);
+            } else {
+              ptyManager.write(surfaceId, key);
+            }
+            respond({ ok: true });
+          } catch (err: any) { respondError(-32000, err.message); }
+        })();
+        break;
+      }
+      case 'surface.read_text': {
+        // Read screen content — not easily available from PTY buffer directly.
+        // Return a note that this requires xterm.js serializer addon in the renderer.
+        respond({ text: '', note: 'Screen reading requires renderer-side xterm serializer' });
+        break;
+      }
+      case 'surface.trigger_flash': {
+        BrowserWindow.getAllWindows().forEach(w => {
+          if (!w.isDestroyed()) {
+            w.webContents.send(IPC_CHANNELS.NOTIFICATION_FIRE, {
+              surfaceId: request.params?.surfaceId,
+              text: 'Flash triggered via CLI',
+            });
+          }
+        });
+        respond({ ok: true });
+        break;
+      }
+
+      // ─── Markdown V2 handlers ─────────────────────────────────────────────
+      case 'markdown.set_content': {
+        (async () => {
+          try {
+            const win = BrowserWindow.getAllWindows()[0];
+            if (!win || win.isDestroyed()) { respondError(-32000, 'No window'); return; }
+            await win.webContents.executeJavaScript(
+              `window.__wmux_setMarkdownContent?.(${JSON.stringify(request.params?.surfaceId || '')}, ${JSON.stringify(request.params?.markdown || '')})`
+            );
+            respond({ ok: true });
+          } catch (err: any) { respondError(-32000, err.message); }
+        })();
+        break;
+      }
+      case 'markdown.load_file': {
+        (async () => {
+          try {
+            const filePath = request.params?.path || request.params?.file;
+            if (!filePath) { respondError(-32000, 'No file path provided'); return; }
+            const content = fs.readFileSync(filePath, 'utf-8');
+            const win = BrowserWindow.getAllWindows()[0];
+            if (!win || win.isDestroyed()) { respondError(-32000, 'No window'); return; }
+            await win.webContents.executeJavaScript(
+              `window.__wmux_setMarkdownContent?.(${JSON.stringify(request.params?.surfaceId || '')}, ${JSON.stringify(content)})`
+            );
+            respond({ ok: true, length: content.length });
+          } catch (err: any) { respondError(-32000, err.message); }
+        })();
+        break;
+      }
+
+      // ─── Notification V2 handlers ─────────────────────────────────────────
+      case 'notification.list': {
+        (async () => {
+          try {
+            const win = BrowserWindow.getAllWindows()[0];
+            if (!win || win.isDestroyed()) { respond({ notifications: [] }); return; }
+            const notifications = await win.webContents.executeJavaScript(
+              `window.__wmux_listNotifications?.()`
+            );
+            respond({ notifications: notifications || [] });
+          } catch (err: any) { respondError(-32000, err.message); }
+        })();
+        break;
+      }
+      case 'notification.clear': {
+        (async () => {
+          try {
+            const win = BrowserWindow.getAllWindows()[0];
+            if (!win || win.isDestroyed()) { respondError(-32000, 'No window'); return; }
+            if (request.params?.all) {
+              await win.webContents.executeJavaScript(
+                `window.__wmux_clearAllNotifications?.()`
+              );
+            } else {
+              await win.webContents.executeJavaScript(
+                `window.__wmux_clearNotification?.(${JSON.stringify(request.params?.id || '')})`
+              );
+            }
+            respond({ ok: true });
+          } catch (err: any) { respondError(-32000, err.message); }
+        })();
+        break;
+      }
+
+      // ─── Sidebar V2 handlers ──────────────────────────────────────────────
+      case 'sidebar.set_status': {
+        // Forward as metadata update to renderer
+        BrowserWindow.getAllWindows().forEach(w => {
+          if (!w.isDestroyed()) {
+            w.webContents.send(IPC_CHANNELS.METADATA_UPDATE, {
+              command: 'status',
+              surfaceId: request.params?.surfaceId,
+              args: [request.params?.key || '', request.params?.value || ''],
+            });
+          }
+        });
+        respond({ ok: true });
+        break;
+      }
+      case 'sidebar.set_progress': {
+        BrowserWindow.getAllWindows().forEach(w => {
+          if (!w.isDestroyed()) {
+            w.webContents.send(IPC_CHANNELS.METADATA_UPDATE, {
+              command: 'progress',
+              surfaceId: request.params?.surfaceId,
+              args: [String(request.params?.value ?? 0), request.params?.label || ''],
+            });
+          }
+        });
+        respond({ ok: true });
+        break;
+      }
+      case 'sidebar.log': {
+        BrowserWindow.getAllWindows().forEach(w => {
+          if (!w.isDestroyed()) {
+            w.webContents.send(IPC_CHANNELS.METADATA_UPDATE, {
+              command: 'log',
+              surfaceId: request.params?.surfaceId,
+              args: [request.params?.level || 'info', request.params?.message || ''],
+            });
+          }
+        });
+        respond({ ok: true });
+        break;
+      }
+      case 'sidebar.get_state': {
+        // Return current sidebar metadata — this is stored in the renderer
+        (async () => {
+          try {
+            const win = BrowserWindow.getAllWindows()[0];
+            if (!win || win.isDestroyed()) { respond({ state: null }); return; }
+            const workspaces = await win.webContents.executeJavaScript(
+              `window.__wmux_listWorkspaces?.()`
+            );
+            respond({ workspaces: workspaces || [] });
+          } catch (err: any) { respondError(-32000, err.message); }
+        })();
+        break;
+      }
+
       case 'browser.navigate':
         if (!cdpBridge.isAttached) { respondError(-32000, 'Browser panel is not open'); break; }
         cdpBridge.navigate(request.params.url, request.params.timeout)

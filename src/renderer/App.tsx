@@ -11,6 +11,7 @@ import SettingsWindow from './components/Settings/SettingsWindow';
 import CommandPalette from './components/CommandPalette/CommandPalette';
 import BrowserPane from './components/Browser/BrowserPane';
 import Tutorial from './components/Tutorial/Tutorial';
+import { initPipeBridge } from './pipe-bridge';
 
 const DEFAULT_SIDEBAR_WIDTH = 240;
 
@@ -170,7 +171,7 @@ export default function App() {
     })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Expose helpers for main process queries
+  // Expose helpers for main process queries + pipe bridge
   useEffect(() => {
     (window as any).__wmux_getActiveWorkspaceId = () => useStore.getState().activeWorkspaceId;
     (window as any).__wmux_getPaneLoads = () => {
@@ -182,6 +183,8 @@ export default function App() {
         return { paneId: pid, tabCount: leaf ? leaf.surfaces.length : 0 };
       });
     };
+    // Initialize pipe bridge — exposes store operations for V2 pipe handlers
+    initPipeBridge();
     return () => {
       delete (window as any).__wmux_getActiveWorkspaceId;
       delete (window as any).__wmux_getPaneLoads;
