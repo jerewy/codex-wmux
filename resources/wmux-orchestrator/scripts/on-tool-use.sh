@@ -12,7 +12,7 @@ AGENT_ID="${WMUX_AGENT_ID:-}"
 [ -z "$AGENT_ID" ] && exit 0
 
 update_state "$ORCH_DIR" \
-  "(.waves[].agents[] | select(.id == \"$AGENT_ID\")) .toolUses += 1"
+  "(.waves[].agents[] | select(.id == \"$AGENT_ID\")).toolUses += 1"
 
 if command -v wmux &>/dev/null; then
   DASHBOARD_SID=$(read_state "$ORCH_DIR" '.dashboardSurfaceId')

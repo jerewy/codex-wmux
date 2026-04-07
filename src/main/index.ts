@@ -253,7 +253,7 @@ app.whenReady().then(() => {
             const win = BrowserWindow.getAllWindows()[0];
             if (!win || win.isDestroyed()) { respondError(-32000, 'No window'); return; }
             await win.webContents.executeJavaScript(
-              `window.__wmux_closePane?.(${JSON.stringify(request.params?.paneId)}, ${JSON.stringify(request.params?.workspaceId)})`
+              `window.__wmux_closePane?.(${JSON.stringify(request.params?.id || request.params?.paneId)}, ${JSON.stringify(request.params?.workspaceId)})`
             );
             respond({ ok: true });
           } catch (err: any) { respondError(-32000, err.message); }
@@ -270,7 +270,7 @@ app.whenReady().then(() => {
             const panes = await win.webContents.executeJavaScript(
               `window.__wmux_listPanes?.(${JSON.stringify(request.params?.workspaceId)})`
             );
-            const pane = (panes || []).find((p: any) => p.paneId === request.params?.paneId);
+            const pane = (panes || []).find((p: any) => p.paneId === (request.params?.id || request.params?.paneId));
             if (pane && pane.surfaces.length > 0) {
               await win.webContents.executeJavaScript(
                 `window.__wmux_focusSurface?.(${JSON.stringify(pane.surfaces[0].id)})`
@@ -397,13 +397,15 @@ app.whenReady().then(() => {
           try {
             const surfaceId = request.params?.surfaceId || request.params?.id;
             let key = request.params?.key || '';
-            // Apply modifiers
-            if (request.params?.ctrl) {
-              // Convert to control character (Ctrl+A = \x01, etc.)
+            // Apply modifiers (support both array format and boolean format)
+            const mods: string[] = request.params?.modifiers || [];
+            const hasCtrl = mods.includes('ctrl') || request.params?.ctrl;
+            const hasAlt = mods.includes('alt') || request.params?.alt;
+            if (hasCtrl && key.length === 1) {
               const code = key.toUpperCase().charCodeAt(0) - 64;
               if (code > 0 && code < 27) key = String.fromCharCode(code);
             }
-            if (request.params?.alt) key = '\x1b' + key;
+            if (hasAlt) key = '\x1b' + key;
 
             if (!surfaceId) {
               const win = BrowserWindow.getAllWindows()[0];
@@ -457,7 +459,7 @@ app.whenReady().then(() => {
       case 'markdown.load_file': {
         (async () => {
           try {
-            const filePath = request.params?.path || request.params?.file;
+            const filePath = request.params?.filePath || request.params?.path || request.params?.file;
             if (!filePath) { respondError(-32000, 'No file path provided'); return; }
             const content = fs.readFileSync(filePath, 'utf-8');
             const win = BrowserWindow.getAllWindows()[0];
