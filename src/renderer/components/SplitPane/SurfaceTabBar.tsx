@@ -13,6 +13,8 @@ interface SurfaceTabBarProps {
   onSplitRight?: () => void;
   onSplitDown?: () => void;
   onDropSurface?: (sourcePaneId: PaneId, surfaceId: SurfaceId, targetPaneId: PaneId) => void;
+  onReorderSurface?: (surfaceId: SurfaceId, newIndex: number) => void;
+  isDragActive?: boolean;
 }
 
 function surfaceIcon(type: string, isAgent: boolean): string {
@@ -48,8 +50,11 @@ export default function SurfaceTabBar({
   onSplitRight,
   onSplitDown,
   onDropSurface,
+  onReorderSurface,
+  isDragActive,
 }: SurfaceTabBarProps) {
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [draggingSurfaceId, setDraggingSurfaceId] = useState<SurfaceId | null>(null);
+  const [insertIndex, setInsertIndex] = useState<number | null>(null);
   const agentMeta = useStore((state) => state.agentMeta);
   const getAgentMeta = (surfaceId: string) => agentMeta.get(surfaceId as any);
 
@@ -64,18 +69,26 @@ export default function SurfaceTabBar({
       }}
       onDrop={(e) => {
         e.preventDefault();
-        setDragOverIndex(null);
+        const savedInsertIndex = insertIndex;
+        setInsertIndex(null);
+        setDraggingSurfaceId(null);
+        document.body.classList.remove('wmux-dragging');
         const data = e.dataTransfer.getData('application/wmux-surface');
-        if (data && onDropSurface) {
-          try {
-            const { sourcePaneId, surfaceId } = JSON.parse(data);
-            if (sourcePaneId !== paneId) {
-              onDropSurface(sourcePaneId as PaneId, surfaceId as SurfaceId, paneId);
+        if (!data) return;
+        try {
+          const { sourcePaneId, surfaceId } = JSON.parse(data);
+          if (sourcePaneId === paneId && onReorderSurface && savedInsertIndex !== null) {
+            const currentIndex = surfaces.findIndex(s => s.id === surfaceId);
+            const adjustedIndex = savedInsertIndex > currentIndex ? savedInsertIndex - 1 : savedInsertIndex;
+            if (adjustedIndex !== currentIndex) {
+              onReorderSurface(surfaceId as SurfaceId, adjustedIndex);
             }
-          } catch {}
-        }
+          } else if (sourcePaneId !== paneId && onDropSurface) {
+            onDropSurface(sourcePaneId as PaneId, surfaceId as SurfaceId, paneId);
+          }
+        } catch {}
       }}
-      onDragLeave={() => setDragOverIndex(null)}
+      onDragLeave={() => setInsertIndex(null)}
     >
       <div className="surface-tab-bar__tabs">
         {surfaces.map((surface, index) => {
@@ -88,7 +101,9 @@ export default function SurfaceTabBar({
               className={[
                 'surface-tab',
                 isActive ? 'surface-tab--active' : '',
-                dragOverIndex === index ? 'surface-tab--drag-over' : '',
+                draggingSurfaceId === surface.id ? 'surface-tab--dragging' : '',
+                insertIndex === index ? 'surface-tab--insert-before' : '',
+                insertIndex === index + 1 && index === surfaces.length - 1 ? 'surface-tab--insert-after' : '',
                 isAgent ? 'surface-tab--agent' : '',
               ].filter(Boolean).join(' ')}
               role="tab"
@@ -101,10 +116,21 @@ export default function SurfaceTabBar({
                   JSON.stringify({ sourcePaneId: paneId, surfaceId: surface.id })
                 );
                 e.dataTransfer.effectAllowed = 'move';
+                setDraggingSurfaceId(surface.id);
+                document.body.classList.add('wmux-dragging');
+              }}
+              onDragEnd={() => {
+                setDraggingSurfaceId(null);
+                setInsertIndex(null);
+                document.body.classList.remove('wmux-dragging');
               }}
               onDragOver={(e) => {
                 e.preventDefault();
-                setDragOverIndex(index);
+                e.stopPropagation();
+                const rect = e.currentTarget.getBoundingClientRect();
+                const midpoint = rect.left + rect.width / 2;
+                const newInsertIndex = e.clientX < midpoint ? index : index + 1;
+                setInsertIndex(newInsertIndex);
               }}
             >
               <span className="surface-tab__icon">{surfaceIcon(surface.type, isAgent)}</span>
