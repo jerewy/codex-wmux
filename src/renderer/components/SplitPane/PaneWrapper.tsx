@@ -305,6 +305,7 @@ export default function PaneWrapper({ leaf, workspaceId, isFocused }: PaneWrappe
         onDropSurface={handleDropSurface}
         onReorderSurface={handleReorderSurface}
         isDragActive={dragActive}
+        isFocused={isFocused}
       />
       <div className="pane-wrapper__content">
         {renderAllSurfaces()}

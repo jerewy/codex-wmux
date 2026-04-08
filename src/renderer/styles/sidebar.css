@@ -309,6 +309,26 @@
   background: rgba(0, 145, 255, 0.3);
 }
 
+/* Expand strip — shown when sidebar is collapsed */
+.sidebar-expand-strip {
+  width: 12px;
+  flex-shrink: 0;
+  background: #111111;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.15);
+  transition: background 0.15s, color 0.15s, width 0.15s;
+}
+.sidebar-expand-strip:hover {
+  width: 16px;
+  background: #1a1a1a;
+  color: rgba(255, 255, 255, 0.6);
+  border-right-color: rgba(0, 145, 255, 0.3);
+}
+
 /* Context menu */
 .workspace-context-menu {
   position: fixed;

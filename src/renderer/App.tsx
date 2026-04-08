@@ -522,7 +522,20 @@ export default function App() {
     setNotifPanelOpen((o) => !o);
   }, []);
 
-  useKeyboardShortcuts(focusedPaneId, setSettingsOpen, () => setBrowserOpen(o => !o), handleToggleNotifPanel);
+  const [zoomedPaneId, setZoomedPaneId] = useState<PaneId | null>(null);
+
+  const handleToggleZoom = useCallback(() => {
+    setZoomedPaneId((prev) => (prev ? null : focusedPaneId));
+  }, [focusedPaneId]);
+
+  // Clear zoom when the zoomed pane no longer exists
+  useEffect(() => {
+    if (!zoomedPaneId || !activeWorkspace) return;
+    const paneIds = getAllPaneIds(activeWorkspace.splitTree);
+    if (!paneIds.includes(zoomedPaneId)) setZoomedPaneId(null);
+  }, [zoomedPaneId, activeWorkspace]);
+
+  useKeyboardShortcuts(focusedPaneId, setSettingsOpen, () => setBrowserOpen(o => !o), handleToggleNotifPanel, setFocusedPaneId, handleToggleZoom);
 
   // Derive a title for the titlebar: active workspace title or blank
   const titlebarText = activeWorkspace?.title ?? '';
@@ -544,7 +557,7 @@ export default function App() {
       />
 
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        {sidebarVisible && (
+        {sidebarVisible ? (
           <Sidebar
             workspaces={workspaces}
             activeWorkspaceId={activeWorkspaceId}
@@ -562,6 +575,34 @@ export default function App() {
             onLoadSession={handleLoadSession}
             onCollapse={toggleSidebar}
           />
+        ) : (
+          <div
+            className="sidebar-expand-strip"
+            onClick={toggleSidebar}
+            onMouseDown={(e) => {
+              // Allow drag-to-expand: start listening for mousemove
+              e.preventDefault();
+              const onMove = (ev: MouseEvent) => {
+                if (ev.clientX > 20) {
+                  toggleSidebar();
+                  setSidebarWidth(Math.max(180, ev.clientX));
+                  document.removeEventListener('mousemove', onMove);
+                  document.removeEventListener('mouseup', onUp);
+                }
+              };
+              const onUp = () => {
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onUp);
+              };
+              document.addEventListener('mousemove', onMove);
+              document.addEventListener('mouseup', onUp);
+            }}
+            title="Expand sidebar (Ctrl+B)"
+          >
+            <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06z"/>
+            </svg>
+          </div>
         )}
 
         {/* Middle: terminals — ALL workspaces stay mounted, only active is visible */}
@@ -578,7 +619,11 @@ export default function App() {
               }}
             >
               <SplitContainer
-                node={ws.splitTree}
+                node={
+                  ws.id === activeWorkspaceId && zoomedPaneId
+                    ? (findLeaf(ws.splitTree, zoomedPaneId) ?? ws.splitTree)
+                    : ws.splitTree
+                }
                 workspaceId={ws.id}
                 focusedPaneId={ws.id === activeWorkspaceId ? focusedPaneId : null}
                 onRatioChange={ws.id === activeWorkspaceId ? handleRatioChange : undefined}

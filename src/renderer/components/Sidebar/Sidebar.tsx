@@ -78,10 +78,16 @@ export default function Sidebar({
   // ── Resize ───────────────────────────────────────────────────────────────
   const handleResizeDelta = useCallback(
     (delta: number) => {
-      const newWidth = Math.min(600, Math.max(180, sidebarWidth + delta));
+      const proposed = sidebarWidth + delta;
+      // Dragging below 80px auto-collapses
+      if (proposed < 80) {
+        onCollapse?.();
+        return;
+      }
+      const newWidth = Math.min(600, Math.max(140, proposed));
       onWidthChange(newWidth);
     },
-    [sidebarWidth, onWidthChange],
+    [sidebarWidth, onWidthChange, onCollapse],
   );
 
   // ── Drag-and-drop ────────────────────────────────────────────────────────

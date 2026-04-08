@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { SurfaceRef, SurfaceId, PaneId } from '../../../shared/types';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { SurfaceRef, SurfaceId, PaneId, WorkspaceId } from '../../../shared/types';
 import { useStore } from '../../store';
 
 interface SurfaceTabBarProps {
@@ -15,6 +15,7 @@ interface SurfaceTabBarProps {
   onDropSurface?: (sourcePaneId: PaneId, surfaceId: SurfaceId, targetPaneId: PaneId) => void;
   onReorderSurface?: (surfaceId: SurfaceId, newIndex: number) => void;
   isDragActive?: boolean;
+  isFocused?: boolean;
 }
 
 function surfaceIcon(type: string, isAgent: boolean): string {
@@ -29,6 +30,7 @@ function surfaceIcon(type: string, isAgent: boolean): string {
 }
 
 function surfaceLabel(surface: SurfaceRef, agentLabel?: string): string {
+  if (surface.customTitle) return surface.customTitle;
   if (agentLabel) return agentLabel;
   switch (surface.type) {
     case 'terminal': return 'Terminal';
@@ -52,11 +54,56 @@ export default function SurfaceTabBar({
   onDropSurface,
   onReorderSurface,
   isDragActive,
+  isFocused,
 }: SurfaceTabBarProps) {
   const [draggingSurfaceId, setDraggingSurfaceId] = useState<SurfaceId | null>(null);
   const [insertIndex, setInsertIndex] = useState<number | null>(null);
+  const [renamingId, setRenamingId] = useState<SurfaceId | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const renameInputRef = useRef<HTMLInputElement>(null);
   const agentMeta = useStore((state) => state.agentMeta);
+  const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
+  const renameSurface = useStore((state) => state.renameSurface);
   const getAgentMeta = (surfaceId: string) => agentMeta.get(surfaceId as any);
+
+  // Start rename for the active surface
+  const startRename = useCallback(() => {
+    const activeSurface = surfaces[activeSurfaceIndex];
+    if (!activeSurface) return;
+    setRenamingId(activeSurface.id);
+    setRenameValue(activeSurface.customTitle || '');
+  }, [surfaces, activeSurfaceIndex]);
+
+  // Commit rename
+  const commitRename = useCallback(() => {
+    if (renamingId && activeWorkspaceId) {
+      renameSurface(activeWorkspaceId, paneId, renamingId, renameValue.trim());
+    }
+    setRenamingId(null);
+    setRenameValue('');
+  }, [renamingId, activeWorkspaceId, paneId, renameValue, renameSurface]);
+
+  // Cancel rename
+  const cancelRename = useCallback(() => {
+    setRenamingId(null);
+    setRenameValue('');
+  }, []);
+
+  // Listen for keyboard shortcut rename event (only when focused)
+  useEffect(() => {
+    if (!isFocused) return;
+    const handler = () => startRename();
+    document.addEventListener('wmux:rename-surface', handler);
+    return () => document.removeEventListener('wmux:rename-surface', handler);
+  }, [isFocused, startRename]);
+
+  // Auto-focus rename input
+  useEffect(() => {
+    if (renamingId) {
+      renameInputRef.current?.focus();
+      renameInputRef.current?.select();
+    }
+  }, [renamingId]);
 
   // Always show tab bar (even for 1 surface — like browser tabs)
   return (
@@ -95,6 +142,7 @@ export default function SurfaceTabBar({
           const isActive = index === activeSurfaceIndex;
           const agentMeta = getAgentMeta(surface.id);
           const isAgent = !!agentMeta;
+          const isRenaming = renamingId === surface.id;
           return (
             <div
               key={surface.id}
@@ -109,7 +157,11 @@ export default function SurfaceTabBar({
               role="tab"
               aria-selected={isActive}
               onClick={() => onSelect(index)}
-              draggable
+              onDoubleClick={() => {
+                setRenamingId(surface.id);
+                setRenameValue(surface.customTitle || '');
+              }}
+              draggable={!isRenaming}
               onDragStart={(e) => {
                 e.dataTransfer.setData(
                   'application/wmux-surface',
@@ -134,8 +186,25 @@ export default function SurfaceTabBar({
               }}
             >
               <span className="surface-tab__icon">{surfaceIcon(surface.type, isAgent)}</span>
-              <span className="surface-tab__label">{surfaceLabel(surface, agentMeta?.label)}</span>
-              {surfaces.length > 1 && (
+              {isRenaming ? (
+                <input
+                  ref={renameInputRef}
+                  className="surface-tab__rename-input"
+                  value={renameValue}
+                  onChange={(e) => setRenameValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') { commitRename(); e.stopPropagation(); }
+                    if (e.key === 'Escape') { cancelRename(); e.stopPropagation(); }
+                    e.stopPropagation();
+                  }}
+                  onBlur={commitRename}
+                  onClick={(e) => e.stopPropagation()}
+                  placeholder={surfaceLabel(surface, agentMeta?.label)}
+                />
+              ) : (
+                <span className="surface-tab__label">{surfaceLabel(surface, agentMeta?.label)}</span>
+              )}
+              {surfaces.length > 1 && !isRenaming && (
                 <button
                   className="surface-tab__close"
                   onClick={(e) => {

@@ -14,6 +14,7 @@ export type SurfaceType = 'terminal' | 'browser' | 'markdown' | 'diff';
 export interface SurfaceRef {
   id: SurfaceId;
   type: SurfaceType;
+  customTitle?: string;
 }
 
 // Workspace

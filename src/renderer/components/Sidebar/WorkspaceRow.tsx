@@ -64,6 +64,17 @@ export default function WorkspaceRow({
   const [renameValue, setRenameValue] = useState(workspace.title);
   const rowRef = useRef<HTMLDivElement>(null);
 
+  // Listen for rename shortcut event (only the active workspace responds)
+  useEffect(() => {
+    if (!isActive) return;
+    const handler = () => {
+      setIsRenaming(true);
+      setRenameValue(workspace.title);
+    };
+    document.addEventListener('wmux:rename-workspace', handler);
+    return () => document.removeEventListener('wmux:rename-workspace', handler);
+  }, [isActive, workspace.title]);
+
   const activeBackground = workspace.customColor ?? '#0091FF';
   const customColorTint = workspace.customColor
     ? `${workspace.customColor}0D`

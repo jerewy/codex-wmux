@@ -32,6 +32,9 @@ export interface SurfaceSlice {
   /** Reorder a surface within the same pane (drag to new tab position) */
   reorderSurface: (workspaceId: WorkspaceId, paneId: PaneId, surfaceId: SurfaceId, newIndex: number) => void;
 
+  /** Rename a surface (set custom tab title) */
+  renameSurface: (workspaceId: WorkspaceId, paneId: PaneId, surfaceId: SurfaceId, customTitle: string) => void;
+
   /** Split a pane and move a surface into the new pane (drag to edge) */
   splitAndMoveSurface: (
     workspaceId: WorkspaceId,
@@ -206,6 +209,21 @@ export const createSurfaceSlice: StateCreator<SliceState, [], [], SurfaceSlice> 
       activeSurfaceIndex: newIndex,
     });
 
+    updateSplitTree(workspaceId, updatedTree);
+  },
+
+  renameSurface(workspaceId, paneId, surfaceId, customTitle) {
+    const { workspaces, updateSplitTree } = get();
+    const ws = workspaces.find((w) => w.id === workspaceId);
+    if (!ws) return;
+
+    const leaf = findLeaf(ws.splitTree, paneId);
+    if (!leaf) return;
+
+    const newSurfaces = leaf.surfaces.map((s) =>
+      s.id === surfaceId ? { ...s, customTitle: customTitle || undefined } : s,
+    );
+    const updatedTree = patchLeaf(ws.splitTree, paneId, { surfaces: newSurfaces });
     updateSplitTree(workspaceId, updatedTree);
   },
 
