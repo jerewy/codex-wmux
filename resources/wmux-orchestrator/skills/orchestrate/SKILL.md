@@ -249,7 +249,7 @@ You should see agents with `"status": "running"`. If any agent failed to spawn (
 ```bash
 PANE_RESULT=$(wmux split --right --type terminal)
 PANE_ID=$(echo "$PANE_RESULT" | node -e "process.stdin.setEncoding('utf8');let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).paneId))")
-wmux agent spawn --cmd "claude --prompt-file \"[orch-dir]/agent-[id]-prompt.md\"" --label "[label]" --cwd "[cwd]" --pane "$PANE_ID"
+wmux agent spawn --cmd "claude --system-prompt-file \"[orch-dir]/agent-[id]-prompt.md\" --allowedTools \"Read Write Edit Grep Glob Bash\" \"Execute your mission. Read the relevant files, implement all changes, then write your result file.\"" --label "[label]" --cwd "[cwd]" --pane "$PANE_ID"
 ```
 
 **If wmux is NOT available (degraded mode only):**

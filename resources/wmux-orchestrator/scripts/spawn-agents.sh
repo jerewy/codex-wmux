@@ -45,8 +45,12 @@ if [ "$WMUX_AVAILABLE" = "true" ]; then
       continue
     fi
 
+    # Interactive mode: full TUI visible in pane, user can watch and intervene
+    # --system-prompt-file sets the mission context
+    # --allowedTools auto-approves tools so the agent works autonomously
+    # Positional arg "Execute..." is the initial user message that triggers work
     SPAWN_RESULT=$(wmux agent spawn \
-      --cmd "claude --prompt-file \"$PROMPT_FILE\"" \
+      --cmd "claude --system-prompt-file \"$PROMPT_FILE\" --allowedTools \"Read Write Edit Grep Glob Bash\" \"Execute your mission. Read the relevant files, implement all changes, then write your result file.\"" \
       --label "$AGENT_LABEL" \
       --cwd "$CWD" \
       --pane "$PANE_ID" 2>&1)
