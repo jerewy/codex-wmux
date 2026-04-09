@@ -11,12 +11,22 @@ WAVE_IDX="$2"
 [ -z "$ORCH_DIR" ] || [ -z "$WAVE_IDX" ] && { echo "Usage: spawn-agents.sh <orch-dir> <wave-index>"; exit 1; }
 
 WMUX_AVAILABLE=false
-if command -v wmux &>/dev/null && wmux ping 2>/dev/null | grep -q pong; then
-  WMUX_AVAILABLE=true
+if command -v wmux &>/dev/null; then
+  PING_RESULT=$(wmux ping 2>&1)
+  if [ "$PING_RESULT" = "pong" ]; then
+    WMUX_AVAILABLE=true
+  else
+    echo "WARNING: wmux found but ping failed: $PING_RESULT" >&2
+  fi
+else
+  echo "WARNING: wmux not found in PATH" >&2
 fi
 
 if [ "$WMUX_AVAILABLE" = "true" ]; then
   PANE_IDX=0
+  CWD=$(read_state "$ORCH_DIR" '.cwd')
+  [ -z "$CWD" ] || [ "$CWD" = "null" ] && CWD="$(pwd)"
+
   node "$JSON_TOOL" query "$ORCH_DIR/state.json" wave-agents-each "$WAVE_IDX" | while IFS= read -r agent; do
     [ -z "$agent" ] && continue
     AGENT_ID=$(parse_json "$agent" '.id')
@@ -24,23 +34,32 @@ if [ "$WMUX_AVAILABLE" = "true" ]; then
     PROMPT_FILE="$ORCH_DIR/agent-${AGENT_ID}-prompt.md"
 
     if [ $PANE_IDX -eq 0 ]; then
-      RESULT=$(wmux split --right --type terminal 2>/dev/null)
+      RESULT=$(wmux split --right --type terminal 2>&1)
     else
-      RESULT=$(wmux split --down --type terminal 2>/dev/null)
+      RESULT=$(wmux split --down --type terminal 2>&1)
     fi
 
     PANE_ID=$(parse_json "$RESULT" '.paneId')
-
-    CWD=$(read_state "$ORCH_DIR" '.cwd')
-    [ -z "$CWD" ] || [ "$CWD" = "null" ] && CWD="$(pwd)"
+    if [ -z "$PANE_ID" ] || [ "$PANE_ID" = "null" ]; then
+      echo "ERROR: Failed to create pane for agent $AGENT_ID. wmux split returned: $RESULT" >&2
+      continue
+    fi
 
     SPAWN_RESULT=$(wmux agent spawn \
       --cmd "claude --prompt-file \"$PROMPT_FILE\"" \
       --label "$AGENT_LABEL" \
       --cwd "$CWD" \
-      --pane "$PANE_ID" 2>/dev/null)
+      --pane "$PANE_ID" 2>&1)
 
+    SPAWNED_AGENT_ID=$(parse_json "$SPAWN_RESULT" '.agentId')
     SPAWNED_SURFACE_ID=$(parse_json "$SPAWN_RESULT" '.surfaceId')
+
+    if [ -z "$SPAWNED_AGENT_ID" ] || [ "$SPAWNED_AGENT_ID" = "null" ]; then
+      echo "ERROR: Failed to spawn agent $AGENT_ID in pane $PANE_ID. wmux agent spawn returned: $SPAWN_RESULT" >&2
+      continue
+    fi
+
+    echo "Spawned agent $AGENT_ID (wmux=$SPAWNED_AGENT_ID) in pane $PANE_ID"
 
     NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
     update_agent "$ORCH_DIR" "$AGENT_ID" \
@@ -52,5 +71,6 @@ if [ "$WMUX_AVAILABLE" = "true" ]; then
     PANE_IDX=$((PANE_IDX + 1))
   done
 else
+  echo "wmux unavailable — writing pending spawn file for degraded mode" >&2
   node "$JSON_TOOL" query "$ORCH_DIR/state.json" wave-agents "$WAVE_IDX" > "$ORCH_DIR/wave-${WAVE_IDX}-pending-spawn.json"
 fi

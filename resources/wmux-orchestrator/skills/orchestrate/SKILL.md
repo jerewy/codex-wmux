@@ -15,8 +15,17 @@ Run the detection script:
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/detect-wmux.sh"
 ```
 
-Store the result. If "unavailable", you will use Claude Code's native Agent tool instead of wmux CLI for spawning workers. Log this to the user:
+Store the result as `WMUX_MODE`:
+- If output is `"available"` → `WMUX_MODE=wmux` — agents spawn in visible terminal panes via `wmux agent spawn`
+- If output is `"unavailable"` → `WMUX_MODE=degraded` — agents spawn as invisible Claude Code subagents via the Agent tool
+
+**This decision is binding for the entire orchestration.** Do not switch modes mid-orchestration.
+
+If degraded, log to the user:
 > "wmux not detected. Running in degraded mode — agents will use Claude Code's native subagent system. Install wmux for the full multi-pane experience: https://wmux.org"
+
+If wmux mode, log to the user:
+> "wmux detected. Agents will spawn in visible terminal panes."
 
 ## Phase 2: Analyze the Codebase
 
@@ -220,24 +229,74 @@ Capture the surfaceId from the split result and update state.json's `dashboardSu
 
 ### 6e. Spawn Wave 1 agents
 
+**CRITICAL RULE: When wmux is available, you MUST use `wmux agent spawn` to create agents in visible terminal panes. Do NOT use Claude Code's `Agent` tool when wmux is available — the Agent tool creates invisible subagents that the user cannot see, which defeats the entire purpose of wmux. The `Agent` tool is ONLY for degraded mode (no wmux).**
+
+**If wmux IS available:**
+
+Spawn agents using the spawn script:
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/spawn-agents.sh" "[orch-dir]" 0
 ```
 
-If wmux is NOT available (degraded mode), spawn each agent using Claude Code's native Agent tool:
-- For each agent in Wave 1, use the Agent tool with the agent's prompt file content as the prompt
+This creates a wmux pane for each agent and runs `claude --prompt-file` in it. Each agent appears as a visible terminal tab the user can watch in real-time.
+
+After spawning, verify agents are running:
+```bash
+wmux agent list
+```
+
+You should see agents with `"status": "running"`. If any agent failed to spawn (missing from the list or status is not "running"), retry that agent's spawn manually:
+```bash
+PANE_RESULT=$(wmux split --right --type terminal)
+PANE_ID=$(echo "$PANE_RESULT" | node -e "process.stdin.setEncoding('utf8');let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).paneId))")
+wmux agent spawn --cmd "claude --prompt-file \"[orch-dir]/agent-[id]-prompt.md\"" --label "[label]" --cwd "[cwd]" --pane "$PANE_ID"
+```
+
+**If wmux is NOT available (degraded mode only):**
+
+Spawn each agent using Claude Code's native Agent tool:
+- For each agent in Wave 1, use the Agent tool with `subagent_type: "wmux-orchestrator:wmux-worker"`
+- Pass the prompt file content as the prompt
 - Use `description: "[agent label]"` for tracking
 - Wait for all agents to complete before proceeding to next wave
 
 ## Phase 7: Monitor and Transition
 
-### With wmux (hooks handle transitions automatically):
-The hooks (`on-agent-stop.sh`) automatically detect when agents finish and spawn the next wave. You can monitor by periodically checking:
+### With wmux (poll-based monitoring):
+
+**Important:** SubagentStop hooks do NOT fire for wmux-spawned agents (they are independent processes, not Claude Code subagents). You must poll for completion.
+
+After spawning Wave N agents, monitor their status by polling:
+
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/check-status.sh" "[orch-dir]"
+wmux agent list
 ```
 
-### Without wmux (manual transitions):
+Check every 15 seconds. For each agent, look at the `"status"` field:
+- `"running"` → agent is still working
+- `"exited"` → agent has finished (check `"exitCode"`: 0 = success, non-zero = failure)
+
+When ALL agents in the current wave show `"status": "exited"`:
+
+1. Read each agent's result file:
+   ```
+   [orch-dir]/agent-[id]-result.md
+   ```
+2. Update state.json: set the wave's status to "completed"
+3. If there are more waves:
+   a. Generate prompt files for Wave N+1 (inject previous wave results into the "Previous Wave Results" section)
+   b. Set Wave N+1 status to "running" in state.json
+   c. Spawn Wave N+1 agents: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/spawn-agents.sh" "[orch-dir]" [N+1]`
+   d. Verify agents spawned with `wmux agent list`
+4. If all waves are done, proceed to Phase 8
+
+Update the dashboard pane after each wave transition:
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/check-status.sh" "[orch-dir]" > "[orch-dir]/dashboard.md"
+wmux markdown set "[dashboardSurfaceId]" --file "[orch-dir]/dashboard.md"
+```
+
+### Without wmux (degraded mode — Agent tool returns):
 1. Wait for all Wave N agents to complete (their Agent tool calls return)
 2. Read their result files
 3. Generate Wave N+1 agent prompts (inject previous wave results)
