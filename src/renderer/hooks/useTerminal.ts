@@ -101,6 +101,38 @@ export function useTerminal({ surfaceId, shell, cwd, visible = true }: UseTermin
     // Open terminal in the DOM
     terminal.open(terminalRef.current);
 
+    // Korean/CJK IME reliability fix.
+    // xterm.js 5.5's CompositionHelper._finalizeComposition defers reading the
+    // textarea via setTimeout(0), which races against fast Hangul composition
+    // (an ending jamo can migrate into the next syllable before the timer fires,
+    // producing dropped/duplicated/wrong characters). Modern Chromium updates
+    // the textarea synchronously before compositionend, so we replace
+    // _finalizeComposition with a sync implementation that reads the textarea
+    // at event-time and clears the consumed portion to prevent double-consume
+    // by the subsequent input event.
+    const xtermCore: any = (terminal as any)._core;
+    const compositionHelper: any = xtermCore?._compositionHelper;
+    if (compositionHelper && xtermCore?.textarea) {
+      compositionHelper._finalizeComposition = function (this: any, _waitForPropagation: boolean): void {
+        if (this._compositionView) {
+          this._compositionView.classList.remove('active');
+          this._compositionView.textContent = '';
+        }
+        this._isComposing = false;
+        this._isSendingComposition = false;
+        const start: number = this._compositionPosition?.start ?? 0;
+        const ta: HTMLTextAreaElement = this._textarea;
+        const value = ta.value;
+        const input = value.substring(start);
+        if (input.length > 0 && this._coreService) {
+          this._coreService.triggerDataEvent(input, true);
+        }
+        ta.value = value.substring(0, start);
+        this._compositionPosition = { start: 0, end: 0 };
+        this._dataAlreadySent = '';
+      };
+    }
+
     // Register OSC notification handlers
     // OSC 9: basic notification (iTerm2 style)
     terminal.parser.registerOscHandler(9, (data) => {

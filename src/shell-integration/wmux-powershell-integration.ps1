@@ -3,6 +3,15 @@
 
 $env:WMUX = "1"
 
+# UTF-8 I/O so multi-byte input (Korean, Japanese, Chinese, emoji, accents)
+# survives the conpty round-trip cleanly.
+try {
+    [Console]::InputEncoding = [System.Text.UTF8Encoding]::new()
+    [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new()
+    $OutputEncoding = [System.Text.UTF8Encoding]::new()
+    $PSDefaultParameterValues['Out-File:Encoding'] = 'utf8'
+} catch {}
+
 # wmux CLI shortcut — Claude Code and users can just type: wmux browser open <url>
 function wmux { node "$env:WMUX_CLI" @args }
 
