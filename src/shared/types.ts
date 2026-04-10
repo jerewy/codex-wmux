@@ -257,4 +257,60 @@ export const IPC_CHANNELS = {
   DIFF_GET_FILES: 'diff:get-files',
   DIFF_GET_DIFF: 'diff:get-diff',
   DIFF_UPDATE: 'diff:update',
+  // Orchestration (wmux-orchestrator plugin state broadcast)
+  ORCHESTRATION_UPDATE: 'orchestration:update',
+  ORCHESTRATION_CLEAR: 'orchestration:clear',
 } as const;
+
+// ─── Orchestration state (wmux-orchestrator plugin) ────────────────────────
+// Mirrors the shape written by the plugin into {TMPDIR}/wmux-orch-*/state.json.
+
+export type OrchAgentStatus = 'pending' | 'running' | 'exited' | 'failed';
+export type OrchWaveStatus = 'pending' | 'running' | 'complete' | 'failed';
+export type OrchRunStatus = 'pending' | 'running' | 'complete' | 'failed';
+
+export interface OrchestrationAgent {
+  id: string;
+  label: string;
+  subtask?: string;
+  files?: string[];
+  excludeFiles?: string[];
+  paneId?: string | null;
+  surfaceId?: string | null;
+  status: OrchAgentStatus;
+  exitCode?: number | null;
+  toolUses?: number;
+  resultFile?: string;
+  startedAt?: string | null;
+  finishedAt?: string | null;
+  lastTool?: string;
+}
+
+export interface OrchestrationWave {
+  index: number;
+  status: OrchWaveStatus;
+  blockedBy?: number[];
+  agents: OrchestrationAgent[];
+}
+
+export interface OrchestrationReviewer {
+  status: OrchRunStatus;
+  agentId?: string | null;
+  reportFile?: string;
+}
+
+export interface OrchestrationState {
+  id: string;
+  task: string;
+  status: OrchRunStatus;
+  startedAt: string;
+  finishedAt?: string;
+  cwd?: string;
+  workspaceId?: string | null;
+  dashboardSurfaceId?: string | null;
+  useWorktrees?: boolean;
+  waves: OrchestrationWave[];
+  reviewer?: OrchestrationReviewer;
+  // Client-side only — populated by the watcher so the renderer knows where to dismiss from.
+  _orchDir?: string;
+}

@@ -4,6 +4,8 @@ import WorkspaceRow from './WorkspaceRow';
 import SidebarResizeHandle from './SidebarResizeHandle';
 import WorkspaceContextMenu from './WorkspaceContextMenu';
 import SessionMenu from './SessionMenu';
+import OrchestrationPanel from './OrchestrationPanel';
+import { useStore } from '../../store';
 import '../../styles/sidebar.css';
 
 interface ContextMenuState {
@@ -73,6 +75,26 @@ export default function Sidebar({
       polling = false;
     }, 3000);
     return () => clearInterval(interval);
+  }, []);
+
+  // ── Orchestration IPC subscription ──────────────────────────────────────
+  // Main process pushes wmux-orchestrator state.json updates; we mirror them
+  // in the Zustand store so OrchestrationPanel re-renders on each change.
+  useEffect(() => {
+    const setOrchestration = useStore.getState().setOrchestration;
+    const clearOrchestration = useStore.getState().clearOrchestration;
+    const api = (window as any).wmux?.orchestration;
+    if (!api) return;
+    const offUpdate = api.onUpdate?.((state: any) => {
+      if (state) setOrchestration(state);
+    });
+    const offClear = api.onClear?.(() => {
+      clearOrchestration();
+    });
+    return () => {
+      offUpdate?.();
+      offClear?.();
+    };
   }, []);
 
   // ── Resize ───────────────────────────────────────────────────────────────
@@ -237,6 +259,8 @@ export default function Sidebar({
           </button>
         )}
       </div>
+
+      <OrchestrationPanel />
 
       <div className="sidebar__list">
         {workspaces.map((ws) => (

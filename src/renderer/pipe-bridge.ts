@@ -3,7 +3,7 @@
  * so the main process can call them via executeJavaScript from V2 pipe handlers.
  */
 import { useStore } from './store';
-import { splitNode, removeLeaf, getAllPaneIds, findLeaf } from './store/split-utils';
+import { splitNode, removeLeaf, getAllPaneIds, findLeaf, buildGridLayout } from './store/split-utils';
 import { PaneId, SurfaceId, WorkspaceId, SurfaceType } from '../shared/types';
 import { v4 as uuid } from 'uuid';
 
@@ -83,6 +83,50 @@ export function initPipeBridge(): void {
     if (newTree) {
       store.updateSplitTree(wsId, newTree);
     }
+  };
+
+  w.__wmux_layoutGrid = (params: { count: number; type?: string; anchorSurfaceId?: string; anchorPaneId?: string; workspaceId?: string }) => {
+    const store = useStore.getState();
+    const wsId = (params?.workspaceId || store.activeWorkspaceId) as WorkspaceId;
+    if (!wsId) return null;
+    const ws = store.workspaces.find(w => w.id === wsId);
+    if (!ws) return null;
+
+    const count = Math.max(1, Math.floor(params.count || 1));
+    if (count < 2) return { newPaneIds: [], newPanes: [] };
+
+    // Resolve the anchor pane: explicit paneId > surface lookup > first pane
+    const paneIds = getAllPaneIds(ws.splitTree);
+    let anchorPaneId: PaneId | undefined;
+
+    if (params.anchorPaneId) {
+      anchorPaneId = params.anchorPaneId as PaneId;
+    } else if (params.anchorSurfaceId) {
+      for (const pid of paneIds) {
+        const leaf = findLeaf(ws.splitTree, pid);
+        if (leaf?.surfaces?.some(s => s.id === params.anchorSurfaceId)) {
+          anchorPaneId = pid;
+          break;
+        }
+      }
+    }
+    if (!anchorPaneId) anchorPaneId = paneIds[0];
+    if (!anchorPaneId) return null;
+
+    const surfaceType = (params.type || 'terminal') as SurfaceType;
+    const { tree: newTree, newPaneIds } = buildGridLayout(ws.splitTree, anchorPaneId, count, surfaceType);
+    store.updateSplitTree(wsId, newTree);
+
+    // Resolve surface IDs for the newly-created panes so callers can target them directly.
+    const newPanes = newPaneIds.map(pid => {
+      const leaf = findLeaf(newTree, pid);
+      return {
+        paneId: pid,
+        surfaceId: leaf?.surfaces?.[0]?.id || null,
+      };
+    });
+
+    return { newPaneIds, newPanes, anchorPaneId, cols: Math.ceil(Math.sqrt(count)), rows: Math.ceil(count / Math.ceil(Math.sqrt(count))) };
   };
 
   w.__wmux_listPanes = (workspaceId?: string) => {

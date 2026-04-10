@@ -125,3 +125,84 @@ export function getAllPaneIds(tree: SplitNode): PaneId[] {
   if (tree.type === 'leaf') return [tree.paneId];
   return [...getAllPaneIds(tree.children[0]), ...getAllPaneIds(tree.children[1])];
 }
+
+// ─── buildGridLayout ──────────────────────────────────────────────────────────
+// Replace a single anchor leaf with a balanced grid of `count` cells.
+// The anchor becomes cell [0,0] (top-left) and its surfaces are preserved.
+// `count - 1` new leaves are created and returned in row-major order.
+// Grid shape: cols = ceil(sqrt(count)), rows = ceil(count / cols) — wider than tall.
+
+function replaceLeafWithSubtree(
+  tree: SplitNode,
+  targetPaneId: PaneId,
+  replacement: SplitNode,
+): SplitNode {
+  if (tree.type === 'leaf') {
+    return tree.paneId === targetPaneId ? replacement : tree;
+  }
+  const [left, right] = tree.children;
+  const newLeft = replaceLeafWithSubtree(left, targetPaneId, replacement);
+  const newRight = replaceLeafWithSubtree(right, targetPaneId, replacement);
+  if (newLeft === left && newRight === right) return tree;
+  return { ...tree, children: [newLeft, newRight] };
+}
+
+export function buildGridLayout(
+  tree: SplitNode,
+  anchorPaneId: PaneId,
+  count: number,
+  surfaceType: SurfaceType = 'terminal',
+): { tree: SplitNode; newPaneIds: PaneId[] } {
+  if (count < 2) return { tree, newPaneIds: [] };
+
+  const anchor = findLeaf(tree, anchorPaneId);
+  if (!anchor) return { tree, newPaneIds: [] };
+
+  const cols = Math.max(1, Math.ceil(Math.sqrt(count)));
+  const rows = Math.max(1, Math.ceil(count / cols));
+
+  const cells: SplitNode[] = [];
+  const newPaneIds: PaneId[] = [];
+  for (let i = 0; i < count; i++) {
+    if (i === 0) {
+      cells.push(anchor);
+    } else {
+      const id = `pane-${uuid()}` as PaneId;
+      newPaneIds.push(id);
+      cells.push(createLeaf(id, surfaceType));
+    }
+  }
+
+  // Chain each row horizontally (left to right): A | (B | (C | D))
+  // ratio[i] = 1 / (rowLen - i) so every cell ends up at 1/rowLen of the row width.
+  const rowTrees: SplitNode[] = [];
+  for (let r = 0; r < rows; r++) {
+    const start = r * cols;
+    const end = Math.min(start + cols, count);
+    const rowCells = cells.slice(start, end);
+    let rowTree: SplitNode = rowCells[rowCells.length - 1];
+    for (let c = rowCells.length - 2; c >= 0; c--) {
+      rowTree = {
+        type: 'branch',
+        direction: 'horizontal',
+        ratio: 1 / (rowCells.length - c),
+        children: [rowCells[c], rowTree],
+      };
+    }
+    rowTrees.push(rowTree);
+  }
+
+  // Chain rows vertically (top to bottom) using the same ratio pattern.
+  let gridTree: SplitNode = rowTrees[rowTrees.length - 1];
+  for (let r = rowTrees.length - 2; r >= 0; r--) {
+    gridTree = {
+      type: 'branch',
+      direction: 'vertical',
+      ratio: 1 / (rowTrees.length - r),
+      children: [rowTrees[r], gridTree],
+    };
+  }
+
+  const newTree = replaceLeafWithSubtree(tree, anchorPaneId, gridTree);
+  return { tree: newTree, newPaneIds };
+}

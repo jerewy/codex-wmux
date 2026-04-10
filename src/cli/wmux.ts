@@ -97,6 +97,30 @@ async function main() {
       case 'list-panes': console.log(JSON.stringify(await sendV2('pane.list', { workspaceId: args.find((a, i) => args[i - 1] === '--workspace') }), null, 2)); break;
       case 'tree': console.log(JSON.stringify(await sendV2('system.tree'), null, 2)); break;
 
+      // Layout
+      case 'layout': {
+        const sub = args[1];
+        if (sub === 'grid') {
+          const params: any = {};
+          for (let i = 2; i < args.length; i += 2) {
+            if (args[i] === '--count') params.count = parseInt(args[i + 1], 10);
+            if (args[i] === '--type') params.type = args[i + 1];
+            if (args[i] === '--anchor-surface') params.anchorSurfaceId = args[i + 1];
+            if (args[i] === '--anchor-pane') params.anchorPaneId = args[i + 1];
+            if (args[i] === '--workspace') params.workspaceId = args[i + 1];
+          }
+          if (!params.count || params.count < 1) { console.error('--count <N> is required and must be >= 1'); process.exit(1); }
+          // If no explicit anchor, fall back to the current shell's surface so the command "just works" from inside a pane.
+          if (!params.anchorSurfaceId && !params.anchorPaneId && process.env.WMUX_SURFACE_ID) {
+            params.anchorSurfaceId = process.env.WMUX_SURFACE_ID;
+          }
+          console.log(JSON.stringify(await sendV2('layout.grid', params), null, 2));
+        } else {
+          console.error(`Unknown layout command: ${sub}`); process.exit(1);
+        }
+        break;
+      }
+
       // Terminal interaction
       case 'send': console.log(JSON.stringify(await sendV2('surface.send_text', { text: args.slice(1).join(' ') }), null, 2)); break;
       case 'send-key': {
@@ -252,6 +276,7 @@ System:     ping, identify, capabilities, list-windows, focus-window <id>
 Workspace:  new-workspace, close-workspace, select-workspace, rename-workspace, list-workspaces
 Surface:    new-surface, close-surface, focus-surface, list-surfaces
 Pane:       split, close-pane, focus-pane, zoom-pane, list-panes, tree
+Layout:     layout grid --count <N> [--type terminal] [--anchor-surface <id>]
 Terminal:   send <text>, send-key <key>, read-screen, trigger-flash
 Browser:    browser open|snapshot|click|type|fill|screenshot|get-text|eval|wait|back|forward|reload
 Agent:      agent spawn|spawn-batch|status|list|kill

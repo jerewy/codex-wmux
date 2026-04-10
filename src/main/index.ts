@@ -11,6 +11,7 @@ import { loadSession, saveSession, handleVersionChange, SessionData } from './se
 import { WindowManager } from './window-manager';
 import { initAutoUpdater } from './updater';
 import { ensureClaudeContext, ensureClaudeHooks, ensureChromeDevtoolsConfig, ensureOrchestratorPlugin } from './claude-context';
+import { startOrchestrationWatcher } from './orchestration-watcher';
 import fs from 'fs';
 import path from 'path';
 
@@ -105,6 +106,9 @@ app.whenReady().then(() => {
   // Start named pipe server
   pipeServer.start();
   cdpProxy.start().catch(() => {}); // CDP proxy is optional — don't crash if ports are busy
+
+  // Watch TMPDIR for wmux-orchestrator runs and push state to the sidebar.
+  startOrchestrationWatcher();
 
   portScanner.onResults((portsByPid) => {
     BrowserWindow.getAllWindows().forEach(win => {
@@ -295,6 +299,22 @@ app.whenReady().then(() => {
               `window.__wmux_listPanes?.(${JSON.stringify(request.params?.workspaceId)})`
             );
             respond({ panes: panes || [] });
+          } catch (err: any) { respondError(-32000, err.message); }
+        })();
+        break;
+      }
+
+      // ─── Layout V2 handler ────────────────────────────────────────────────
+      case 'layout.grid': {
+        (async () => {
+          try {
+            const win = BrowserWindow.getAllWindows()[0];
+            if (!win || win.isDestroyed()) { respondError(-32000, 'No window'); return; }
+            const result = await win.webContents.executeJavaScript(
+              `window.__wmux_layoutGrid?.(${JSON.stringify(request.params || {})})`
+            );
+            if (!result) { respondError(-32000, 'No active workspace or invalid anchor'); return; }
+            respond(result);
           } catch (err: any) { respondError(-32000, err.message); }
         })();
         break;

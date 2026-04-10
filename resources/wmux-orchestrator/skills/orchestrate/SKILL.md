@@ -72,6 +72,104 @@ Determine agent count per wave based on:
 - Maximum practical limit: 5 agents per wave (more causes diminishing returns from context overhead)
 - If only 1 subtask exists, skip orchestration and do it directly
 
+## Phase 4.5: Detect Coupling & Generate Contracts
+
+Before presenting the plan, audit each wave for **coupling**: cases where multiple parallel agents must agree on names, types, shapes, or IDs for the final output to work. Coupling that isn't explicitly coordinated causes drift — agents independently invent different names for the same concept and the integration breaks. (This actually happened on a past run: two parallel agents building HTML and CSS invented different class names like `.hero__grid` vs `.hero__inner` for the same element, and 510 lines of alias CSS were needed to reconcile after the fact.)
+
+### Coupling triggers
+
+A wave has coupled agents when any of these apply:
+- Two or more agents touch files of the same domain that reference each other by name:
+  - HTML + CSS of the same component (class names must match)
+  - HTML + JS of the same component (mount-point IDs and selectors must match)
+  - Frontend client + backend server for the same feature (endpoint paths, request/response shapes must match)
+  - Schema producer + schema consumer (exported type signatures must match)
+  - Multiple agents adding methods/fields to the same exported module
+- Two or more agents fill slots in a shared top-level structure (e.g., one writes the HTML skeleton, others write the component markup that plugs into it)
+- Two or more agents read from or write to a common config/constants file
+
+### Resolution paths
+
+For each coupled group, choose ONE resolution:
+
+1. **Merge into a single agent.** Use when the coupled work is small enough for one agent (roughly < 800 lines of final output) AND the work is naturally cohesive. Prefer this when possible — fewest moving parts.
+
+2. **Sequence across waves.** Move one agent to an earlier wave; the later wave's prompt includes the earlier wave's result file so the dependent agent reads real names from real files. Use when the coupling is directional (types → consumers, schema → migrations, API → clients) and large enough that merging would make one agent unwieldy.
+
+3. **Generate a shared contract file.** Write a single source-of-truth document that BOTH agents read before writing any code. Use when the work MUST run in parallel AND the coupling is naming-only, not logic-level.
+
+### Generating the contract file (path 3)
+
+When you choose path 3, write `{orch-dir}/wave-{N}-contract.md` BEFORE spawning the wave. Every shared name must appear in it. If an agent needs a name not in the contract, that's a bug — the agent must stop and flag disagreement (see injection below), not silently invent.
+
+Template (omit sections that don't apply — don't include placeholder text, only real names):
+
+````markdown
+# Wave {N} Contract — [short description]
+
+> This is the single source of truth for names shared by parallel agents in wave {N}.
+> All agents listed below MUST read this file before writing any code and use these
+> names verbatim. Do not invent alternatives.
+
+## Agents bound by this contract
+- agent-a ([role])
+- agent-b ([role])
+
+## Shared HTML class names
+_(fill this section when at least one agent writes HTML and another writes CSS)_
+- Site header: `.site-header`, `.site-header__brand`, `.site-header__nav`, `.site-header__link`
+- Hero: `.hero`, `.hero__grid`, `.hero__title`, `.hero__title__line`, `.hero__cta`
+
+## Shared DOM IDs and mount points
+_(fill when one agent writes HTML scaffolding that another agent fills via JS)_
+- `#wave-sim-root` — empty div in hero; agent-c mounts the simulator into it
+- `aside.activity-rail` — empty aside in hero; agent-e appends log lines to it
+
+## Shared CSS custom properties
+_(fill when CSS declares variables that JS reads/writes)_
+- `--scroll` — 0..1 fractional page scroll, written by motion agent, read by CSS
+- `--mouse-x`, `--mouse-y` — **pixel** values (not normalized), written by ambient agent, read by CSS `top`/`left`
+
+## Shared TypeScript/JavaScript exports
+_(fill when one agent declares types/functions used by another in the same wave)_
+- `export type User = { id: string; email: string; role: 'admin' | 'user' }` in `src/shared/types.ts`
+- `export function formatDate(d: Date): string` in `src/shared/format.ts`
+
+## Shared API endpoints
+_(fill when frontend and backend are coupled)_
+- `POST /api/auth/login` — request `{ email, password }`, response `{ token, user: User }`
+- `GET /api/users/:id` — response `User`
+
+## Shared file structure
+_(fill when multiple agents place files in a coordinated layout)_
+- `src/components/Hero/Hero.tsx` — structure (agent-a)
+- `src/components/Hero/hero.module.css` — styles (agent-b)
+````
+
+### Injecting the contract into agent prompts
+
+For EVERY coupled agent in the wave, add this block to their prompt file (in Phase 6c), placed right after the `## Orchestration Context` section and before `## Your Zone of Work`:
+
+````markdown
+## Shared Contract — READ BEFORE WRITING ANY CODE
+
+You share this wave with other agents who depend on the same names. To prevent naming drift, a shared contract has been written at:
+
+`{orch-dir}/wave-{N}-contract.md`
+
+**Before writing any code, use the Read tool to read that file in full.** It defines every class name, mount point, type, and API shape that you and the other agents must use identically. Use these names verbatim — do not invent alternatives, do not translate them, do not simplify them.
+
+If a name in the contract seems wrong or missing:
+1. Stop implementation.
+2. Write to your result file with status `contract_disagreement`.
+3. Describe the specific name at issue and your proposed alternative.
+4. Do NOT silently invent a different name and proceed.
+
+The reviewer will pick up any `contract_disagreement` result and reconcile before the next wave.
+````
+
+Agents NOT in a coupled group skip this block — their work is independent and doesn't need the extra read.
+
 ## Phase 5: Present the Plan
 
 Show the user a structured plan. Format it clearly:
@@ -183,6 +281,8 @@ You are [Agent ID] in orchestration [ORCH_ID].
 [N] other agents are working on the same project in parallel.
 You are in Wave [N] of [total waves].
 
+[If this agent is in a coupled group per Phase 4.5, inject the Shared Contract block here — see Phase 4.5 template. Skip for non-coupled agents.]
+
 [If wave 2+:]
 ## Previous Wave Results
 The following agents completed before you. Their results:
@@ -256,6 +356,18 @@ Spawn each agent using Claude Code's native Agent tool:
 ## Phase 7: Monitor and Transition (Orchestrator Loop)
 
 **You are the orchestrator.** Your job is to monitor agent progress and coordinate wave transitions. This is where the real orchestration happens.
+
+### Live dashboard visibility
+
+Before entering the loop, note how the user sees progress:
+
+- **In wmux mode**: wmux's sidebar automatically watches `{TMPDIR}/wmux-orch-*/state.json` and renders a live cockpit (task, elapsed time, per-wave progress bars, per-agent state dots, tool counts). You don't need to do anything to keep it updated — the hooks already update state.json on tool-use and wave transitions, and the sidebar polls every second. Do NOT call the dashboard manually in wmux mode; it would be redundant and noisy.
+
+- **In degraded mode (no wmux)**: you must print the text dashboard into Claude Code's conversation at each wave transition so the user can see progress. Run:
+  ```bash
+  node "${CLAUDE_PLUGIN_ROOT}/scripts/dashboard-text.js" "[orch-dir]"
+  ```
+  Call it ONCE after spawning each wave, and ONCE after each wave completes. Do not call it inside the monitoring loop (that would spam the session). If the user asks "how's it going", you can also call it then.
 
 ### With wmux (poll-based monitoring):
 

@@ -4,8 +4,9 @@ import { SettingsSlice, createSettingsSlice } from './settings-slice';
 import { NotificationSlice, createNotificationSlice } from './notification-slice';
 import { SurfaceSlice, createSurfaceSlice } from './surface-slice';
 import { AgentSlice, createAgentSlice } from './agent-slice';
+import { OrchestrationSlice, createOrchestrationSlice } from './orchestration-slice';
 
-export type WmuxStore = WorkspaceSlice & SettingsSlice & NotificationSlice & SurfaceSlice & AgentSlice;
+export type WmuxStore = WorkspaceSlice & SettingsSlice & NotificationSlice & SurfaceSlice & AgentSlice & OrchestrationSlice;
 
 export const useStore = create<WmuxStore>()((...args) => ({
   ...createWorkspaceSlice(...args),
@@ -13,4 +14,5 @@ export const useStore = create<WmuxStore>()((...args) => ({
   ...createNotificationSlice(...args),
   ...createSurfaceSlice(...args),
   ...createAgentSlice(...args),
+  ...createOrchestrationSlice(...args),
 }));
