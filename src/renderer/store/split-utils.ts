@@ -127,25 +127,27 @@ export function getAllPaneIds(tree: SplitNode): PaneId[] {
 }
 
 // ─── buildGridLayout ──────────────────────────────────────────────────────────
-// Replace a single anchor leaf with a balanced grid of `count` cells.
-// The anchor becomes cell [0,0] (top-left) and its surfaces are preserved.
-// `count - 1` new leaves are created and returned in row-major order.
-// Grid shape: cols = ceil(sqrt(count)), rows = ceil(count / cols) — wider than tall.
-
-function replaceLeafWithSubtree(
-  tree: SplitNode,
-  targetPaneId: PaneId,
-  replacement: SplitNode,
-): SplitNode {
-  if (tree.type === 'leaf') {
-    return tree.paneId === targetPaneId ? replacement : tree;
-  }
-  const [left, right] = tree.children;
-  const newLeft = replaceLeafWithSubtree(left, targetPaneId, replacement);
-  const newRight = replaceLeafWithSubtree(right, targetPaneId, replacement);
-  if (newLeft === left && newRight === right) return tree;
-  return { ...tree, children: [newLeft, newRight] };
-}
+// Replace the ENTIRE workspace split tree with a balanced grid of `count` cells.
+//
+// Cell [0,0] (top-left) is the anchor pane, keeping its original surfaces plus
+// any surfaces absorbed from every other existing pane as extra tabs. This way
+// no PTY is killed and no running process is lost when the orchestrator takes
+// over the viewport — a dev server that was running in another pane simply
+// becomes a tab in the top-left cell of the new grid.
+//
+// The `count - 1` remaining cells are brand-new leaves, returned in row-major
+// order so callers (spawn-agents.sh) can assign agents to them by index.
+//
+// Grid shape: cols = ceil(sqrt(count)), rows = ceil(count / cols) — wider than
+// tall, matching the typical 16:9 workspace aspect ratio.
+//
+// Why replace-entire-tree instead of wrap-anchor-in-place: the old behaviour
+// wrapped the anchor leaf with the grid subtree, which meant the grid only
+// occupied the anchor's rectangle. With multiple existing panes, N agents got
+// crammed into 1/N-th of the viewport while the rest stayed untouched. The
+// orchestrator's goal is to take over the whole workspace, so full replacement
+// is the correct semantic — we just have to preserve surfaces as tabs so no
+// work is lost in the transition.
 
 export function buildGridLayout(
   tree: SplitNode,
@@ -158,6 +160,23 @@ export function buildGridLayout(
   const anchor = findLeaf(tree, anchorPaneId);
   if (!anchor) return { tree, newPaneIds: [] };
 
+  // Absorb surfaces from every OTHER existing pane into the anchor as extra
+  // tabs. The anchor's original surfaces come first, so its active tab index
+  // still points at the orchestrator's own surface after the merge.
+  const allPaneIds = getAllPaneIds(tree);
+  const absorbedSurfaces: typeof anchor.surfaces = [];
+  for (const pid of allPaneIds) {
+    if (pid === anchorPaneId) continue;
+    const otherLeaf = findLeaf(tree, pid);
+    if (otherLeaf?.surfaces) absorbedSurfaces.push(...otherLeaf.surfaces);
+  }
+
+  const mergedAnchor: SplitNode & { type: 'leaf' } = {
+    ...anchor,
+    surfaces: [...anchor.surfaces, ...absorbedSurfaces],
+    activeSurfaceIndex: anchor.activeSurfaceIndex,
+  };
+
   const cols = Math.max(1, Math.ceil(Math.sqrt(count)));
   const rows = Math.max(1, Math.ceil(count / cols));
 
@@ -165,7 +184,7 @@ export function buildGridLayout(
   const newPaneIds: PaneId[] = [];
   for (let i = 0; i < count; i++) {
     if (i === 0) {
-      cells.push(anchor);
+      cells.push(mergedAnchor);
     } else {
       const id = `pane-${uuid()}` as PaneId;
       newPaneIds.push(id);
@@ -203,6 +222,7 @@ export function buildGridLayout(
     };
   }
 
-  const newTree = replaceLeafWithSubtree(tree, anchorPaneId, gridTree);
-  return { tree: newTree, newPaneIds };
+  // Replace the entire workspace tree with the grid. Other panes' containers
+  // are discarded; their surfaces already live inside mergedAnchor.
+  return { tree: gridTree, newPaneIds };
 }
