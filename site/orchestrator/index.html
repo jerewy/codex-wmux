@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>wmux-orchestrator — parallel agents in visible terminal panes</title>
+  <meta name="description" content="A Claude Code plugin. One task becomes parallel agents, each in a visible wmux pane, each in a strict file zone. A reviewer checks consistency before you commit." />
+  <meta name="author" content="amirlehmam" />
+  <meta name="theme-color" content="#070707" />
+
+  <meta property="og:title" content="wmux-orchestrator — parallel agents in visible terminal panes" />
+  <meta property="og:description" content="A Claude Code plugin. One task becomes parallel agents, each in a visible wmux pane, each in a strict file zone. A reviewer checks consistency before you commit." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://plugin.wmux.org/" />
+  <meta property="og:site_name" content="wmux-orchestrator" />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="wmux-orchestrator — parallel agents in visible terminal panes" />
+  <meta name="twitter:description" content="A Claude Code plugin. One task becomes parallel agents, each in a visible wmux pane, each in a strict file zone. A reviewer checks consistency before you commit." />
+
+  <link rel="icon" type="image/png" href="./assets/favicon.png" />
+  <link rel="canonical" href="https://plugin.wmux.org/" />
+  <link rel="stylesheet" href="styles.css" />
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "wmux-orchestrator",
+    "description": "A Claude Code plugin. One task becomes parallel agents, each in a visible wmux pane, each in a strict file zone. A reviewer checks consistency before you commit.",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "Cross-platform",
+    "softwareVersion": "0.1.0",
+    "license": "https://opensource.org/licenses/MIT",
+    "url": "https://plugin.wmux.org/",
+    "downloadUrl": "https://github.com/amirlehmam/wmux-orchestrator",
+    "author": {
+      "@type": "Person",
+      "name": "amirlehmam",
+      "url": "https://github.com/amirlehmam"
+    },
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    }
+  }
+  </script>
+
+  <script defer src="wave-sim.js"></script>
+  <script defer src="motion.js"></script>
+  <script defer src="ambient.js"></script>
+  <script defer src="hero-panes.js"></script>
+</head>
+<body>
+  <div class="scroll-progress" aria-hidden="true"></div>
+  <div class="grain" aria-hidden="true"></div>
+  <div class="cursor-glow" aria-hidden="true"></div>
+
+  <header class="site-header" role="banner">
+    <a class="site-header__mark" href="/" aria-label="wmux-orchestrator home">
+      <span class="site-header__mark__text">wmux-orchestrator</span>
+      <span class="site-header__mark__cursor" aria-hidden="true">_</span>
+    </a>
+    <nav class="site-header__nav" aria-label="Primary">
+      <a class="site-header__link" href="#wave-sim">simulator</a>
+      <a class="site-header__link" href="#model">model</a>
+      <a class="site-header__link" href="#how-it-works">how</a>
+      <a class="site-header__link" href="#architecture">architecture</a>
+      <a class="site-header__link" href="#quickstart">install</a>
+    </nav>
+    <div class="site-header__status" aria-label="Status: live">
+      <span class="site-header__dot" aria-hidden="true"></span>
+      <span class="site-header__status__label">LIVE · v0.1.0</span>
+    </div>
+  </header>
+
+  <main>
+    <section id="hero" class="section section--hero">
+      <div class="section__inner hero__inner">
+        <p class="hero__eyebrow">v0.1.0 · CLAUDE CODE PLUGIN · MIT</p>
+        <h1 class="hero__title">
+          <span class="hero__title__line" data-line="1">Split the task.</span>
+          <span class="hero__title__line" data-line="2">Spawn the wave.</span>
+          <span class="hero__title__line" data-line="3">Watch every pane.</span>
+        </h1>
+        <p class="hero__lede">
+          A Claude Code plugin. One task becomes parallel agents, each in a visible <code>wmux</code> pane, each in a strict file zone. A reviewer checks consistency before you commit.
+        </p>
+        <div class="hero__meta">
+          <code class="hero__install">/plugin install wmux-orchestrator</code>
+          <a class="hero__gh" href="https://github.com/amirlehmam/wmux-orchestrator">github <span class="hero__gh__arrow" aria-hidden="true">↗</span></a>
+        </div>
+        <div class="hero__panes" data-mount aria-hidden="true"></div>
+      </div>
+    </section>
+
+    <section id="wave-sim" class="section section--sim">
+      <div class="section__inner">
+        <p class="section__eyebrow">INTERACTIVE · WAVE-01</p>
+        <h2 class="section__title">One task. Three agents. Parallel.</h2>
+        <p class="section__lede">
+          Press play. Three agents spawn. They finish. A second wave consumes their output. A reviewer closes the run. This is the plugin — minus the real Claude Code calls.
+        </p>
+        <div id="wave-sim-root" class="wsim-root"></div>
+        <p class="section__fine">
+          The simulator is a toy. The real plugin spawns actual Claude Code agents in <code>wmux</code> panes. See the repo.
+        </p>
+      </div>
+    </section>
+
+    <section id="model" class="section section--model">
+      <div class="section__inner">
+        <p class="section__eyebrow">MENTAL MODEL · ONE GLANCE</p>
+        <h2 class="section__title">From one prompt to a parallel fleet.</h2>
+        <p class="section__lede">
+          The orchestrator splits your task into file-zoned subtasks, groups them into dependency-ordered waves, and spawns each subtask as its own Claude Code agent in its own visible terminal pane.
+        </p>
+        <div class="model">
+          <div class="model__stage" aria-hidden="true">
+            <div class="model__prompt">one prompt</div>
+            <div class="model__arrow">→</div>
+            <div class="model__waves">
+              <div class="model__wave" data-wave="1">
+                <span class="model__agent" data-agent="a">agent-a</span>
+                <span class="model__agent" data-agent="b">agent-b</span>
+                <span class="model__agent" data-agent="c">agent-c</span>
+              </div>
+              <div class="model__wave" data-wave="2">
+                <span class="model__agent" data-agent="d">agent-d</span>
+                <span class="model__agent" data-agent="e">agent-e</span>
+              </div>
+              <div class="model__wave" data-wave="r">
+                <span class="model__agent" data-agent="r">reviewer</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="how-it-works" class="section section--how">
+      <div class="section__inner">
+        <p class="section__eyebrow">MECHANICS · END-TO-END</p>
+        <h2 class="section__title">Six steps. Prompt to commit.</h2>
+
+        <ol class="how__steps">
+          <li class="how__step" data-step="1">
+            <p class="how__step__label">STEP 01 · ANALYZE</p>
+            <h3 class="how__step__title">Read the codebase.</h3>
+            <p class="how__step__body">Reads your codebase. Traces imports. Groups files into subtasks. No manual graph.</p>
+          </li>
+          <li class="how__step" data-step="2">
+            <p class="how__step__label">STEP 02 · DECOMPOSE</p>
+            <h3 class="how__step__title">Cut clean file zones.</h3>
+            <p class="how__step__body">Each subtask gets a strict allowed and excluded list. Tight coupling stays together. Shared types ship in the earliest wave.</p>
+          </li>
+          <li class="how__step" data-step="3">
+            <p class="how__step__label">STEP 03 · WAVE 1</p>
+            <h3 class="how__step__title">Foundations, in parallel.</h3>
+            <p class="how__step__body">Foundation agents run simultaneously in their own <code>wmux</code> panes. Types. Interfaces. Shared modules.</p>
+          </li>
+          <li class="how__step" data-step="4">
+            <p class="how__step__label">STEP 04 · WAVE 2+</p>
+            <h3 class="how__step__title">Dependents consume results.</h3>
+            <p class="how__step__body">Dependent agents spawn once the previous wave reports done. They receive prior results as context. Nothing is invented twice.</p>
+          </li>
+          <li class="how__step" data-step="5">
+            <p class="how__step__label">STEP 05 · REVIEW</p>
+            <h3 class="how__step__title">Automated consistency pass.</h3>
+            <p class="how__step__body">An automated reviewer checks types, imports, orphan exports. Minor issues auto-fix. The rest surface in the report.</p>
+          </li>
+          <li class="how__step" data-step="6">
+            <p class="how__step__label">STEP 06 · SHIP</p>
+            <h3 class="how__step__title">Commit, diff, or abort.</h3>
+            <p class="how__step__body">Three options. Commit the work. View the aggregated diff. Abort everything. No half-applied state.</p>
+          </li>
+        </ol>
+
+        <div class="how__diagram" aria-hidden="true">
+          <div class="how__wave" data-wave="1"><span class="how__wave__label">WAVE 01</span></div>
+          <div class="how__wave" data-wave="2"><span class="how__wave__label">WAVE 02</span></div>
+          <div class="how__wave" data-wave="3"><span class="how__wave__label">WAVE 03</span></div>
+          <div class="how__wave" data-wave="4"><span class="how__wave__label">WAVE 04</span></div>
+          <div class="how__wave" data-wave="5"><span class="how__wave__label">WAVE 05</span></div>
+          <div class="how__wave" data-wave="6"><span class="how__wave__label">REVIEW</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="file-zones" class="section section--zones">
+      <div class="section__inner">
+        <p class="section__eyebrow">ISOLATION · FILE ZONES</p>
+        <h2 class="section__title">Strict zones. Zero collisions.</h2>
+        <p class="section__lede">
+          Every agent receives an allowed and excluded file list before it starts. Two agents cannot touch the same file. When an agent edits outside its zone, the tool call is rejected. No merge theatre. No lost work. No silent overwrites.
+        </p>
+        <div class="zones">
+          <div class="zones__file" data-owner="agent-a" data-state="writing">
+            <p class="zones__file__owner">AGENT A · WAVE 01</p>
+            <code class="zones__file__path">src/auth/types.ts</code>
+            <p class="zones__file__note">shared types — foundation</p>
+          </div>
+          <div class="zones__file" data-owner="agent-b" data-state="pending">
+            <p class="zones__file__owner">AGENT B · WAVE 02</p>
+            <code class="zones__file__path">src/auth/service.ts</code>
+            <p class="zones__file__note">depends on types.ts</p>
+          </div>
+          <div class="zones__file" data-owner="agent-c" data-state="pending">
+            <p class="zones__file__owner">AGENT C · WAVE 02</p>
+            <code class="zones__file__path">src/auth/middleware.ts</code>
+            <p class="zones__file__note">depends on types.ts</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="comparison" class="section section--cmp">
+      <div class="section__inner">
+        <p class="section__eyebrow">ENVIRONMENTS · DIFF</p>
+        <h2 class="section__title">The diff between with and without.</h2>
+        <p class="section__lede">Same orchestration logic. Different execution surface. The delta is visibility and intervention.</p>
+
+        <pre class="diff" aria-label="With wmux versus without wmux"><span class="diff__row diff__row--ctx"><span class="diff__sign"> </span>task decomposition               · same</span><span class="diff__row diff__row--ctx"><span class="diff__sign"> </span>plan approval                    · same</span><span class="diff__row diff__row--ctx"><span class="diff__sign"> </span>reviewer                         · same</span><del class="diff__row diff__row--del"><span class="diff__sign">-</span>agents run as invisible subagents</del><ins class="diff__row diff__row--add"><span class="diff__sign">+</span>agents run in visible wmux panes</ins><del class="diff__row diff__row--del"><span class="diff__sign">-</span>progress shown as a text spinner</del><ins class="diff__row diff__row--add"><span class="diff__sign">+</span>progress shown as a live dashboard</ins><del class="diff__row diff__row--del"><span class="diff__sign">-</span>no mid-run user intervention</del><ins class="diff__row diff__row--add"><span class="diff__sign">+</span>type into any pane to intervene</ins><del class="diff__row diff__row--del"><span class="diff__sign">-</span>wave transitions via Agent tool returns</del><ins class="diff__row diff__row--add"><span class="diff__sign">+</span>wave transitions via SubagentStop hooks</ins></pre>
+      </div>
+    </section>
+
+    <section id="quickstart" class="section section--qs">
+      <div class="section__inner">
+        <p class="section__eyebrow">QUICKSTART · 30 SECONDS</p>
+        <h2 class="section__title">Install in 30 seconds.</h2>
+        <p class="section__lede">
+          Drop the plugin into Claude Code. Fire a task. Approve the plan. That's the loop.
+        </p>
+
+        <div class="qs__term" role="group" aria-label="Install transcript">
+          <div class="qs__term__bar">
+            <span class="qs__term__dot qs__term__dot--a"></span>
+            <span class="qs__term__dot qs__term__dot--b"></span>
+            <span class="qs__term__dot qs__term__dot--c"></span>
+            <span class="qs__term__title">claude-code · zsh</span>
+            <button class="qs__copy" type="button" aria-label="Copy install command" data-copy="/plugin install wmux-orchestrator">copy</button>
+          </div>
+          <div class="qs__term__body">
+            <div class="qs__line"><span class="qs__prompt">$</span> <span class="qs__cmd">/plugin install wmux-orchestrator</span></div>
+            <div class="qs__line qs__line--out">Installed wmux-orchestrator v0.1.0</div>
+            <div class="qs__line qs__line--out">Hooks registered · SessionStart, PostToolUse, SubagentStop, Stop</div>
+            <div class="qs__line"><span class="qs__prompt">$</span> <span class="qs__cmd">/wmux:orchestrate "refactor auth to use JWT"</span></div>
+            <div class="qs__line qs__line--out">Analyzing codebase... traced 47 files across 3 modules.</div>
+            <div class="qs__line qs__line--out">Plan: 3 agents across 2 waves + reviewer.</div>
+            <div class="qs__line qs__line--out">Validate this plan? (yes / adjust / cancel)</div>
+            <div class="qs__line"><span class="qs__prompt">$</span> <span class="qs__cmd qs__cmd--blink">yes</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="architecture" class="section section--arch">
+      <div class="section__inner">
+        <p class="section__eyebrow">ARCHITECTURE</p>
+        <h2 class="section__title">Three layers. No daemon. No magic.</h2>
+        <p class="section__lede">
+          Three moving parts. Each does one job. None of them poll. None of them run in the background.
+        </p>
+
+        <div class="arch">
+          <div class="arch__layer" data-layer="1">
+            <p class="arch__layer__label">LAYER 01 · SKILLS</p>
+            <h3 class="arch__layer__title">The intelligence.</h3>
+            <p class="arch__layer__desc">
+              Codebase analysis. Task decomposition. Plan presentation. Review. The orchestrate skill drives the flow. The reviewer runs after every wave is done.
+            </p>
+            <ul class="arch__layer__items">
+              <li><code>orchestrate/SKILL.md</code></li>
+              <li><code>reviewer/SKILL.md</code></li>
+              <li><code>wmux-detect/SKILL.md</code></li>
+            </ul>
+          </div>
+
+          <div class="arch__layer" data-layer="2">
+            <p class="arch__layer__label">LAYER 02 · HOOKS</p>
+            <h3 class="arch__layer__title">The reactivity.</h3>
+            <p class="arch__layer__desc">
+              <code>PostToolUse</code> tracks per-agent activity. <code>SubagentStop</code> drives wave transitions. <code>SessionStart</code> handles crash recovery. <code>Stop</code> warns when an orchestration is still live.
+            </p>
+            <ul class="arch__layer__items">
+              <li><code>PostToolUse</code></li>
+              <li><code>SubagentStop</code></li>
+              <li><code>Stop</code></li>
+              <li><code>SessionStart</code></li>
+            </ul>
+          </div>
+
+          <div class="arch__layer" data-layer="3">
+            <p class="arch__layer__label">LAYER 03 · SCRIPTS</p>
+            <h3 class="arch__layer__title">The <code>wmux</code> operations.</h3>
+            <p class="arch__layer__desc">
+              Spawning agents in panes. Updating the dashboard. Writing state. Collecting results. Plain bash. Talks to the <code>wmux</code> CLI.
+            </p>
+            <ul class="arch__layer__items">
+              <li><code>spawn-agents.sh</code></li>
+              <li><code>update-dashboard.sh</code></li>
+              <li><code>on-agent-stop.sh</code></li>
+              <li><code>collect-results.sh</code></li>
+            </ul>
+          </div>
+        </div>
+
+        <p class="arch__footnote">Shared state is a JSON file in a temp directory. That's it.</p>
+      </div>
+    </section>
+
+    <section id="links" class="section section--links">
+      <div class="section__inner">
+        <p class="section__eyebrow">ELSEWHERE</p>
+        <h2 class="section__title">Source. Host. Marketplace.</h2>
+
+        <div class="links__row">
+          <a class="links__item" href="https://github.com/amirlehmam/wmux-orchestrator">
+            <span class="links__label">GitHub</span>
+            <span class="links__sub">amirlehmam/wmux-orchestrator</span>
+            <span class="links__arrow" aria-hidden="true">↗</span>
+          </a>
+          <a class="links__item" href="https://wmux.org">
+            <span class="links__label">wmux</span>
+            <span class="links__sub">the host multiplexer</span>
+            <span class="links__arrow" aria-hidden="true">↗</span>
+          </a>
+          <a class="links__item" href="https://github.com/amirlehmam/claude-plugins-official">
+            <span class="links__label">Plugin marketplace</span>
+            <span class="links__sub">amirlehmam/claude-plugins-official</span>
+            <span class="links__arrow" aria-hidden="true">↗</span>
+          </a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <aside class="activity-rail" aria-hidden="true"></aside>
+
+  <footer class="site-footer" role="contentinfo">
+    <div class="site-footer__inner">
+      <span class="site-footer__item">v0.1.0</span>
+      <span class="site-footer__sep" aria-hidden="true">·</span>
+      <span class="site-footer__item">by <a class="site-footer__link" href="https://github.com/amirlehmam">amirlehmam</a></span>
+      <span class="site-footer__sep" aria-hidden="true">·</span>
+      <span class="site-footer__item">MIT</span>
+      <span class="site-footer__sep" aria-hidden="true">·</span>
+      <span class="site-footer__item">© 2026</span>
+    </div>
+  </footer>
+</body>
+</html>

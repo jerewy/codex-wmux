@@ -1,3 +1,89 @@
 [build]
   publish = "site/"
   command = "echo 'Static site, no build needed'"
+
+# ============================================================================
+# wmux-orchestrator (plugin.wmux.org)
+# Explicit-URL rewrite: serve site/orchestrator/ under plugin.wmux.org
+# Note: Netlify [redirects.conditions] does NOT support Host matching, so we
+# match the host directly inside the `from` field as a full URL pattern.
+# ============================================================================
+
+# Root: plugin.wmux.org/ → serve /orchestrator/index.html (silent rewrite)
+[[redirects]]
+  from = "https://plugin.wmux.org/"
+  to = "/orchestrator/index.html"
+  status = 200
+  force = true
+
+# Everything else under plugin.wmux.org → orchestrator/:splat
+[[redirects]]
+  from = "https://plugin.wmux.org/*"
+  to = "/orchestrator/:splat"
+  status = 200
+  force = true
+
+# ============================================================================
+# Cache headers — orchestrator subpath
+# ============================================================================
+
+# Self-hosted Geist Mono woff2 — immutable, far-future cache
+# (Two patterns: /orchestrator/* matches direct hits on wmux.org/orchestrator/,
+#  /assets/* matches plugin.wmux.org requests after the host rewrite — Netlify
+#  evaluates headers against the incoming URL, not the rewritten file path.)
+[[headers]]
+  for = "/orchestrator/assets/fonts/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+    Access-Control-Allow-Origin = "*"
+
+[[headers]]
+  for = "/assets/fonts/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+    Access-Control-Allow-Origin = "*"
+
+# Other assets (favicon, future OG images) — immutable
+[[headers]]
+  for = "/orchestrator/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# CSS — short cache, must revalidate
+[[headers]]
+  for = "/orchestrator/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=3600, must-revalidate"
+
+[[headers]]
+  for = "/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=3600, must-revalidate"
+
+# JS — short cache, must revalidate
+[[headers]]
+  for = "/orchestrator/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=3600, must-revalidate"
+
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=3600, must-revalidate"
+
+# ============================================================================
+# Security headers — site-wide (applies to wmux.org and plugin.wmux.org)
+# ============================================================================
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
