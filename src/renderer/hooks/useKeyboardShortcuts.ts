@@ -8,7 +8,12 @@ import { v4 as uuid } from 'uuid';
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function matchesBinding(e: KeyboardEvent, binding: ShortcutBinding): boolean {
-  const keyMatch = e.key === binding.key;
+  // Case-insensitive compare for single-letter keys: Shift uppercases e.key on Windows,
+  // but bindings are stored lowercase. Without toLowerCase, Ctrl+Shift+letter combos
+  // never match (e.g. Ctrl+Shift+N fires with e.key='N' vs binding.key='n').
+  const eventKey = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  const bindingKey = binding.key.length === 1 ? binding.key.toLowerCase() : binding.key;
+  const keyMatch = eventKey === bindingKey;
   const ctrlMatch = !!binding.ctrl === e.ctrlKey;
   const shiftMatch = !!binding.shift === e.shiftKey;
   const altMatch = !!binding.alt === e.altKey;
