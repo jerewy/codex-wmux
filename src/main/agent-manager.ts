@@ -30,6 +30,7 @@ export class AgentManager {
   }
 
   spawn(params: AgentSpawnParams & { paneId: PaneId; workspaceId: WorkspaceId }): { agentId: AgentId; surfaceId: SurfaceId } {
+    if (!params.cmd) throw new Error('Cannot spawn agent: cmd is required');
     const agentId: AgentId = `agent-${uuid()}`;
     const created = this.ptyManager.create({
       shell: '',  // Use default shell (resolves to pwsh/powershell/bash, not hardcoded cmd.exe)

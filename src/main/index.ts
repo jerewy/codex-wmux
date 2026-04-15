@@ -775,7 +775,10 @@ app.whenReady().then(() => {
             }
             if (!paneId) { respondError(-32000, 'No panes available'); return; }
 
-            const result = agentManager.spawn({ cmd: params.cmd, label: params.label, cwd: params.cwd, env: params.env, paneId, workspaceId });
+            // Accept both 'cmd' and 'prompt' field names (plugins may use either)
+            const cmd = params.cmd || params.prompt;
+            if (!cmd) { respondError(-32602, 'Missing required field: cmd'); return; }
+            const result = agentManager.spawn({ cmd, label: params.label, cwd: params.cwd, env: params.env, paneId, workspaceId });
 
             const win = BrowserWindow.getAllWindows()[0];
             if (win && !win.isDestroyed()) setupAgentPtyForwarding(result.surfaceId, win);
@@ -818,7 +821,10 @@ app.whenReady().then(() => {
             const results: any[] = [];
             for (let i = 0; i < agentParams.length; i++) {
               try {
-                const result = agentManager.spawn({ ...agentParams[i], paneId: assignments[i] as any, workspaceId });
+                // Accept both 'cmd' and 'prompt' field names
+                const agentCmd = agentParams[i].cmd || agentParams[i].prompt;
+                if (!agentCmd) { results.push({ error: `Agent ${i}: missing required field 'cmd'` }); continue; }
+                const result = agentManager.spawn({ ...agentParams[i], cmd: agentCmd, paneId: assignments[i] as any, workspaceId });
                 if (win && !win.isDestroyed()) setupAgentPtyForwarding(result.surfaceId, win);
                 BrowserWindow.getAllWindows().forEach(w => {
                   if (!w.isDestroyed()) w.webContents.send(IPC_CHANNELS.AGENT_UPDATE, { type: 'spawned', ...result, paneId: assignments[i], workspaceId, label: agentParams[i].label });
