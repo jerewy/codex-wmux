@@ -8,6 +8,7 @@ import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { ImageAddon } from '@xterm/addon-image';
 import { useStore } from '../store';
 import { SplitNode } from '../../shared/types';
+import { openInWmuxBrowser } from '../utils/open-in-browser';
 import '@xterm/xterm/css/xterm.css';
 
 declare global {
@@ -98,17 +99,9 @@ export function useTerminal({ surfaceId, shell, cwd, visible = true }: UseTermin
 
     // Create and load addons
     const fitAddon = new FitAddon();
-    const webLinksAddon = new WebLinksAddon((_event, uri) => {
-      // Intercept localhost URLs → open in browser panel instead of system browser
-      try {
-        const url = new URL(uri);
-        if (url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '0.0.0.0') {
-          window.wmux?.browser?.navigate?.('', uri);
-          return;
-        }
-      } catch {}
-      // Non-localhost URLs → open in system browser
-      window.wmux?.system?.openExternal?.(uri);
+    const webLinksAddon = new WebLinksAddon((event, uri) => {
+      const forceExternal = !!(event as MouseEvent)?.ctrlKey || !!(event as MouseEvent)?.metaKey;
+      openInWmuxBrowser(uri, { forceExternal });
     });
     const searchAddon = new SearchAddon();
     const unicode11Addon = new Unicode11Addon();

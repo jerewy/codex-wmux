@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { marked } from 'marked';
+import { openInWmuxBrowser } from '../../utils/open-in-browser';
 import '../../styles/markdown.css';
 
 interface MarkdownPaneProps {
@@ -19,10 +20,20 @@ export default function MarkdownPane({ content = '', surfaceId }: MarkdownPanePr
     return marked.parse(content) as string;
   }, [content]);
 
+  const handleClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    const anchor = (event.target as HTMLElement)?.closest?.('a') as HTMLAnchorElement | null;
+    if (!anchor?.href) return;
+
+    event.preventDefault();
+    const forceExternal = event.ctrlKey || event.metaKey;
+    openInWmuxBrowser(anchor.href, { forceExternal });
+  }, []);
+
   return (
     <div className="markdown-pane" data-surface-id={surfaceId}>
       <div
         className="markdown-pane__content"
+        onClick={handleClick}
         dangerouslySetInnerHTML={{ __html: html }}
       />
     </div>
