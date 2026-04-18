@@ -514,6 +514,32 @@ app.whenReady().then(() => {
         })();
         break;
       }
+      case 'config.get': {
+        // Expose the current ~/.wmux/config.toml state (incl. parse errors).
+        (async () => {
+          try {
+            const { loadUserConfig } = await import('./user-config');
+            respond(loadUserConfig());
+          } catch (err: any) { respondError(-32000, err.message); }
+        })();
+        break;
+      }
+      case 'config.reload': {
+        // Re-read ~/.wmux/config.toml and live-apply to every open window.
+        (async () => {
+          try {
+            const { loadUserConfig } = await import('./user-config');
+            const cfg = loadUserConfig();
+            for (const win of BrowserWindow.getAllWindows()) {
+              if (!win.isDestroyed()) {
+                win.webContents.send('config:userConfigUpdated', cfg);
+              }
+            }
+            respond(cfg);
+          } catch (err: any) { respondError(-32000, err.message); }
+        })();
+        break;
+      }
 
       // ─── Terminal I/O V2 handlers ─────────────────────────────────────────
       case 'surface.send_text': {

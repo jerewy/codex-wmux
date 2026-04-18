@@ -9,6 +9,7 @@ import { NotificationManager } from './notification-manager';
 import { detectShells } from './shell-detector';
 import { getDefaultTheme, getThemeByName, loadBundledThemes } from './theme-loader';
 import { parseWindowsTerminalConfig, parseGhosttyConfig } from './config-loader';
+import { loadUserConfig, getConfigPath } from './user-config';
 import { WindowManager } from './window-manager';
 import { CDPBridge } from './cdp-bridge';
 import { CDPProxy } from './cdp-proxy';
@@ -110,6 +111,25 @@ export function registerIpcHandlers(windowManager: WindowManager, cdpProxyInstan
   ipcMain.handle(IPC_CHANNELS.CONFIG_IMPORT_GHOSTTY, async () => {
     return parseGhosttyConfig();
   });
+
+  // User config (~/.wmux/config.toml) — read on startup, reloadable at runtime.
+  ipcMain.handle(IPC_CHANNELS.CONFIG_GET_USER_CONFIG, async () => {
+    return loadUserConfig();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.CONFIG_RELOAD_USER_CONFIG, async () => {
+    const cfg = loadUserConfig();
+    // Broadcast to every open window so all surfaces live-apply the new prefs.
+    for (const win of BrowserWindow.getAllWindows()) {
+      if (!win.isDestroyed()) {
+        win.webContents.send(IPC_CHANNELS.CONFIG_USER_CONFIG_UPDATED, cfg);
+      }
+    }
+    return cfg;
+  });
+
+  // Exposed so diagnostics (and the CLI) can report which path was read.
+  ipcMain.handle('config:getUserConfigPath', async () => getConfigPath());
 
   ipcMain.on(IPC_CHANNELS.NOTIFICATION_FIRE, (_event, data: { surfaceId: string; text: string; title?: string }) => {
     const window = BrowserWindow.fromWebContents(_event.sender);

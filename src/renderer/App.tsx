@@ -191,6 +191,39 @@ export default function App() {
     };
   }, []);
 
+  // Load ~/.wmux/config.toml on startup and listen for `wmux reload-config`.
+  // File-wins-at-startup, app-wins-at-runtime: file values are applied over
+  // persisted Zustand state, then in-app edits take over until reload/restart.
+  useEffect(() => {
+    const cfg = (window as any).wmux?.config;
+    if (!cfg?.getUserConfig) return;
+
+    const apply = (result: any) => {
+      const terminal = result?.terminal;
+      if (!terminal) return;
+      const state = useStore.getState();
+      const patch: Partial<typeof state.terminalPrefs> = {};
+      if (terminal.fontFamily !== undefined) patch.fontFamily = terminal.fontFamily;
+      if (terminal.fontSize !== undefined) patch.fontSize = terminal.fontSize;
+      if (terminal.theme !== undefined) patch.theme = terminal.theme;
+      if (terminal.cursorStyle !== undefined) patch.cursorStyle = terminal.cursorStyle;
+      if (terminal.cursorBlink !== undefined) patch.cursorBlink = terminal.cursorBlink;
+      if (terminal.scrollbackLines !== undefined) patch.scrollbackLines = terminal.scrollbackLines;
+      if (terminal.userColorSchemes) {
+        // Merge: file-defined schemes replace by-name but don't clobber others.
+        patch.userColorSchemes = {
+          ...state.terminalPrefs.userColorSchemes,
+          ...terminal.userColorSchemes,
+        };
+      }
+      if (Object.keys(patch).length) state.setTerminalPrefs(patch);
+    };
+
+    cfg.getUserConfig().then(apply).catch(() => { /* no-op */ });
+    const unsub = cfg.onUserConfigUpdated?.(apply);
+    return () => { try { unsub?.(); } catch { /* no-op */ } };
+  }, []);
+
   // Listen for agent spawn events from main process
   useEffect(() => {
     if (!window.wmux?.agent?.onUpdate) return;

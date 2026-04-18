@@ -128,6 +128,28 @@ async function main() {
         break;
       }
 
+      // User config (~/.wmux/config.toml)
+      case 'reload-config': {
+        // Re-read the TOML dotfile and broadcast the new prefs to every window.
+        console.log(JSON.stringify(await sendV2('config.reload'), null, 2));
+        break;
+      }
+      case 'config': {
+        const sub = args[1];
+        if (sub === 'show' || sub === 'get') {
+          console.log(JSON.stringify(await sendV2('config.get'), null, 2));
+        } else if (sub === 'reload') {
+          console.log(JSON.stringify(await sendV2('config.reload'), null, 2));
+        } else if (sub === 'path') {
+          const home = process.env.USERPROFILE || process.env.HOME || '';
+          console.log(`${home}\\.wmux\\config.toml`);
+        } else {
+          console.error('Usage: wmux config <show|reload|path>');
+          process.exit(1);
+        }
+        break;
+      }
+
       // Pane
       case 'split': {
         const direction = args.includes('--down') ? 'down' : 'right';
@@ -364,6 +386,8 @@ Diff:       diff [--file <path>]
 Notify:     notify <text>, list-notifications, clear-notifications
 Sidebar:    set-status, set-progress, log, sidebar-state
 Hook:       hook --event <type> --tool <name> [--agent <id>]
+Config:     config show|reload|path   (edits ~/.wmux/config.toml — see docs)
+            reload-config             (shorthand for 'config reload')
 `);
 }
 

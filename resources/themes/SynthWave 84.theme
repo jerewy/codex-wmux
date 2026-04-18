@@ -1,0 +1,22 @@
+# SynthWave 84 — https://github.com/robb0wen/synthwave-vscode
+background = #262335
+foreground = #ffffff
+cursor-color = #ff7edb
+selection-background = #34294f
+selection-foreground = #ffffff
+palette = 0=#000000
+palette = 1=#fe4450
+palette = 2=#72f1b8
+palette = 3=#fede5d
+palette = 4=#03edf9
+palette = 5=#ff7edb
+palette = 6=#36f9f6
+palette = 7=#ffffff
+palette = 8=#495495
+palette = 9=#fe4450
+palette = 10=#72f1b8
+palette = 11=#fff951
+palette = 12=#3f9cf1
+palette = 13=#ff7edb
+palette = 14=#57e2e5
+palette = 15=#ffffff

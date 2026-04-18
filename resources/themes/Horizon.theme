@@ -1,0 +1,22 @@
+# Horizon — https://horizontheme.netlify.app
+background = #1c1e26
+foreground = #c7c9cb
+cursor-color = #e95678
+selection-background = #2e303e
+selection-foreground = #c7c9cb
+palette = 0=#16161c
+palette = 1=#e95678
+palette = 2=#29d398
+palette = 3=#fab795
+palette = 4=#26bbd9
+palette = 5=#ee64ac
+palette = 6=#59e1e3
+palette = 7=#d5d8da
+palette = 8=#5b5858
+palette = 9=#ec6a88
+palette = 10=#3fdaa4
+palette = 11=#fbc3a7
+palette = 12=#3fc4de
+palette = 13=#f075b5
+palette = 14=#6be4e6
+palette = 15=#d5d8da

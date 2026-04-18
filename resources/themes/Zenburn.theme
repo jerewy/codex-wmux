@@ -1,0 +1,22 @@
+# Zenburn — https://kippura.org/zenburnpage
+background = #3f3f3f
+foreground = #dcdccc
+cursor-color = #dcdccc
+selection-background = #4f4f4f
+selection-foreground = #dcdccc
+palette = 0=#4d4d4d
+palette = 1=#705050
+palette = 2=#60b48a
+palette = 3=#dfaf8f
+palette = 4=#506070
+palette = 5=#dc8cc3
+palette = 6=#8cd0d3
+palette = 7=#dcdccc
+palette = 8=#709080
+palette = 9=#dca3a3
+palette = 10=#c3bf9f
+palette = 11=#f0dfaf
+palette = 12=#94bff3
+palette = 13=#ec93d3
+palette = 14=#93e0e3
+palette = 15=#ffffff

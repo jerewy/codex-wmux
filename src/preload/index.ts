@@ -39,6 +39,14 @@ contextBridge.exposeInMainWorld('wmux', {
     getThemeList: () => ipcRenderer.invoke(IPC_CHANNELS.CONFIG_GET_THEME_LIST),
     importWindowsTerminal: () => ipcRenderer.invoke(IPC_CHANNELS.CONFIG_IMPORT_WT),
     importGhostty: () => ipcRenderer.invoke(IPC_CHANNELS.CONFIG_IMPORT_GHOSTTY),
+    getUserConfig: () => ipcRenderer.invoke(IPC_CHANNELS.CONFIG_GET_USER_CONFIG),
+    reloadUserConfig: () => ipcRenderer.invoke(IPC_CHANNELS.CONFIG_RELOAD_USER_CONFIG),
+    getUserConfigPath: () => ipcRenderer.invoke('config:getUserConfigPath'),
+    onUserConfigUpdated: (callback: (cfg: any) => void) => {
+      const handler = (_event: any, cfg: any) => callback(cfg);
+      ipcRenderer.on(IPC_CHANNELS.CONFIG_USER_CONFIG_UPDATED, handler);
+      return () => ipcRenderer.removeListener(IPC_CHANNELS.CONFIG_USER_CONFIG_UPDATED, handler);
+    },
   },
   metadata: {
     onUpdate: (callback: (command: any) => void) => {
