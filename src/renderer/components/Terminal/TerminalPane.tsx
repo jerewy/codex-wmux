@@ -28,7 +28,7 @@ export default function TerminalPane({
   onFindBarClose,
   copyModeActive = false,
 }: TerminalPaneProps) {
-  const { terminalRef, searchAddonRef } = useTerminal({ surfaceId, shell, cwd, visible, colorScheme });
+  const { terminalRef, searchAddonRef } = useTerminal({ surfaceId, shell, cwd, visible, focused, colorScheme });
 
   const [_lastQuery, setLastQuery] = useState('');
 

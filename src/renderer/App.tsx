@@ -581,6 +581,7 @@ export default function App() {
         title={titlebarText}
         onHelpClick={() => setTutorialOpen(true)}
         onDevToolsClick={() => window.wmux?.system?.toggleDevTools?.()}
+        onSettingsClick={() => setSettingsOpen(true)}
         notifications={notifications}
         workspaceNames={workspaceNames}
         notificationPanelOpen={notifPanelOpen}

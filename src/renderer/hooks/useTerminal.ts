@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Terminal, ITheme } from '@xterm/xterm';
-import { WebglAddon } from '@xterm/addon-webgl';
+import { CanvasAddon } from '@xterm/addon-canvas';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { SearchAddon } from '@xterm/addon-search';
@@ -24,6 +24,12 @@ interface UseTerminalOptions {
   cwd?: string;
   /** Whether this terminal tab is currently visible (for refit on tab switch) */
   visible?: boolean;
+  /** Whether this pane currently owns keyboard focus in the app.
+   *  When both visible AND focused become true we pull DOM focus back onto
+   *  xterm's hidden textarea — otherwise keystrokes go to whichever textarea
+   *  was last focused (often in a now-hidden workspace), making the new
+   *  session look "frozen". */
+  focused?: boolean;
   /** Per-surface color scheme override — takes priority over terminalPrefs.theme. */
   colorScheme?: string;
 }
@@ -116,7 +122,7 @@ async function fetchTheme(name: string): Promise<ThemeConfig> {
   }
 }
 
-export function useTerminal({ surfaceId, shell, cwd, visible = true, colorScheme }: UseTerminalOptions = {}): UseTerminalResult {
+export function useTerminal({ surfaceId, shell, cwd, visible = true, focused = true, colorScheme }: UseTerminalOptions = {}): UseTerminalResult {
   const terminalRef = useRef<HTMLDivElement | null>(null);
   const xtermRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -257,16 +263,17 @@ export function useTerminal({ surfaceId, shell, cwd, visible = true, colorScheme
       return true;
     });
 
-    // Try WebGL renderer, fall back to canvas
-    const webglAddon = new WebglAddon();
+    // Use Canvas2D renderer instead of WebGL. WebGL has a hard per-process
+    // limit (~16 contexts in Chromium); with N workspaces x M panes that ceiling
+    // gets hit fast and Chromium force-loses the oldest contexts, which in
+    // practice freezes the whole renderer (both old and newly-created sessions
+    // stop reacting). Canvas2D has no such limit and keeps all terminals live.
+    const canvasAddon = new CanvasAddon();
     try {
-      webglAddon.onContextLoss(() => {
-        webglAddon.dispose();
-      });
-      terminal.loadAddon(webglAddon);
+      terminal.loadAddon(canvasAddon);
     } catch {
-      // WebGL unavailable — xterm falls back to canvas renderer automatically
-      webglAddon.dispose();
+      // Canvas unavailable — xterm falls back to DOM renderer automatically
+      canvasAddon.dispose();
     }
 
     // Initial fit
@@ -432,11 +439,16 @@ export function useTerminal({ surfaceId, shell, cwd, visible = true, colorScheme
     return () => { cancelled = true; };
   }, [schemeName, userScheme, prefs.fontFamily, prefs.fontSize, prefs.cursorStyle, prefs.cursorBlink, prefs.scrollbackLines]);
 
-  // Refit terminal when it becomes visible again (tab/workspace switch)
+  // Refit + force-repaint when terminal becomes visible again (tab/workspace switch).
+  // Canvas2D inside a visibility:hidden ancestor skips paint frames; on return we
+  // must trigger an explicit refresh() so the buffer re-draws to the canvas.
+  // Also: when this pane is the active one in the now-visible workspace,
+  // pull DOM focus back onto xterm's textarea. Without this, after switching
+  // sessions keystrokes still target the previously-focused (now hidden)
+  // terminal and the new session looks frozen.
   useEffect(() => {
     if (visible && fitAddonRef.current && xtermRef.current) {
-      // Double-RAF ensures the browser has fully computed layout after
-      // visibility changes before we measure and fit the terminal
+      const term = xtermRef.current;
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           fit();
@@ -444,10 +456,14 @@ export function useTerminal({ surfaceId, shell, cwd, visible = true, colorScheme
           if (dims && ptyIdRef.current) {
             window.wmux.pty.resize(ptyIdRef.current, dims.cols, dims.rows);
           }
+          try { term.refresh(0, term.rows - 1); } catch { /* no-op */ }
+          if (focused) {
+            try { term.focus(); } catch { /* no-op */ }
+          }
         });
       });
     }
-  }, [visible]);
+  }, [visible, focused]);
 
   return { terminalRef, fit, xtermRef, searchAddonRef };
 }

@@ -1,6 +1,6 @@
 {
   "name": "wmux",
-  "version": "0.7.3",
+  "version": "0.7.4",
   "description": "Windows terminal multiplexer for AI agents",
   "license": "MIT",
   "main": "dist/main/index.js",
@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@types/ws": "^8.18.1",
+    "@xterm/addon-canvas": "^0.7.0",
     "@xterm/addon-fit": "^0.10.0",
     "@xterm/addon-image": "^0.8.0",
     "@xterm/addon-search": "^0.15.0",
