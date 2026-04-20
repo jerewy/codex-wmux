@@ -161,7 +161,11 @@ export default function PaneWrapper({ leaf, workspaceId, isFocused }: PaneWrappe
           key={surface.id}
           className="pane-wrapper__surface-layer"
           style={{
-            visibility: isActive ? 'visible' : 'hidden',
+            // Must use isVisible (not isActive) — explicit `visibility: visible`
+            // on a child overrides a hidden ancestor (CSS spec), so inactive
+            // workspaces would keep painting their active tabs on top of the
+            // visible workspace. Gate on isWorkspaceActive to respect parent.
+            visibility: isVisible ? 'visible' : 'hidden',
             zIndex: isActive ? 1 : 0,
           }}
         >
