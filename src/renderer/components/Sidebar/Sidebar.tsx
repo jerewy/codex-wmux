@@ -6,6 +6,7 @@ import WorkspaceContextMenu from './WorkspaceContextMenu';
 import SessionMenu from './SessionMenu';
 import OrchestrationPanel from './OrchestrationPanel';
 import { useStore } from '../../store';
+import { WorkspaceCompletion } from './workspace-status';
 import '../../styles/sidebar.css';
 
 interface ContextMenuState {
@@ -27,6 +28,7 @@ interface SidebarProps {
   onUpdateMetadata: (id: WorkspaceId, partial: Partial<WorkspaceInfo>) => void;
   hookActivity?: Record<string, { lastTool: string; toolCount: number; lastSeen: number }>;
   claudeActivity?: Record<string, any>;
+  recentCompletions?: Record<string, WorkspaceCompletion>;
   onSaveSession?: (name: string) => void;
   onLoadSession?: (name: string) => void;
   onCollapse?: () => void;
@@ -45,6 +47,7 @@ export default function Sidebar({
   onUpdateMetadata,
   hookActivity,
   claudeActivity,
+  recentCompletions,
   onSaveSession,
   onLoadSession,
   onCollapse,
@@ -281,6 +284,7 @@ export default function Sidebar({
             agentCount={agentCounts[ws.id] || 0}
             hookActivity={hookActivity?.[ws.id]}
             claudeActivity={claudeActivity}
+            recentCompletion={recentCompletions?.[ws.id]}
           />
         ))}
       </div>
@@ -305,8 +309,11 @@ export default function Sidebar({
           />
         ) : (
           <>
-            <button className="sidebar__footer-btn" onClick={() => setSaveInputOpen(true)} title="Save session">
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M2 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4.414A1 1 0 0 0 14.707 4L12 1.293A1 1 0 0 0 11.586 1H2zm0 1h1v3.5a.5.5 0 0 0 .5.5h7a.5.5 0 0 0 .5-.5V2h.586L14 4.414V14H2V2zm3 0v3h5V2H5zm3 7a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg>
+            <button className="sidebar__footer-btn" onClick={() => setSaveInputOpen(true)} title="Save named session snapshot">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                <path d="M4 2.5A1.5 1.5 0 0 1 5.5 1h5A1.5 1.5 0 0 1 12 2.5v11.2a.5.5 0 0 1-.79.407L8 11.813l-3.21 2.294A.5.5 0 0 1 4 13.7V2.5ZM5.5 2a.5.5 0 0 0-.5.5v10.229l2.71-1.936a.5.5 0 0 1 .58 0L11 12.729V2.5a.5.5 0 0 0-.5-.5h-5Z"/>
+                <path d="M8 3.5a.5.5 0 0 1 .5.5v1.5H10a.5.5 0 0 1 0 1H8.5V8a.5.5 0 0 1-1 0V6.5H6a.5.5 0 0 1 0-1h1.5V4a.5.5 0 0 1 .5-.5Z"/>
+              </svg>
             </button>
             <button className="sidebar__footer-btn" onClick={() => setSessionMenuOpen(!sessionMenuOpen)} title="Load session">
               <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M1 3.5A1.5 1.5 0 0 1 2.5 2h2.764c.958 0 1.76.56 2.311 1.184C7.985 3.648 8.48 4 9 4h4.5A1.5 1.5 0 0 1 15 5.5v7a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 1 12.5v-9zM2.5 3a.5.5 0 0 0-.5.5V6h12v-.5a.5.5 0 0 0-.5-.5H9c-.964 0-1.71-.572-2.331-1.184C6.268 3.394 5.762 3 5.264 3H2.5zM14 7H2v5.5a.5.5 0 0 0 .5.5h11a.5.5 0 0 0 .5-.5V7z"/></svg>

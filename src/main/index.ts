@@ -10,8 +10,7 @@ import { IPC_CHANNELS } from '../shared/types';
 import { loadSession, saveSession, handleVersionChange, SessionData } from './session-persistence';
 import { WindowManager } from './window-manager';
 import { initAutoUpdater } from './updater';
-import { ensureClaudeContext, ensureClaudeHooks, ensureChromeDevtoolsConfig, ensureOrchestratorPlugin } from './claude-context';
-import { startOrchestrationWatcher } from './orchestration-watcher';
+import { clearSurfaceCodexActive, enrichWorkspacesWithCodexSessionIds } from './codex-session-resolver';
 import fs from 'fs';
 import path from 'path';
 
@@ -157,17 +156,13 @@ function translateKeyName(key: string, shift: boolean): string | null {
 }
 
 // Set Windows AppUserModelId so taskbar pinning uses the correct icon & identity
-app.setAppUserModelId('com.wmux.app');
+app.setAppUserModelId('local.wmux.app');
 
-// Auto-strip MOTW on startup so users never see security warnings or pinning failures
-stripMotw();
+// Keep Windows Mark-of-the-Web provenance intact in this local Codex-focused fork.
+void stripMotw;
 
 app.whenReady().then(() => {
-  // Inject wmux instructions into ~/.claude/CLAUDE.md for Claude Code awareness
-  ensureClaudeContext();
-  ensureClaudeHooks();
-  ensureChromeDevtoolsConfig();
-  ensureOrchestratorPlugin();
+  // wmux does not modify Claude/Codex configuration on startup.
 
   // IPC: renderer pushes session state (auto-save response or explicit save)
   ipcMain.on('session:save', (event, data: SessionData) => {
@@ -176,11 +171,14 @@ app.whenReady().then(() => {
     if (win && !win.isDestroyed() && data.windows?.[0]) {
       data.windows[0].bounds = win.getBounds();
     }
+    if (data.windows?.[0]?.workspaces) {
+      data.windows[0].workspaces = enrichWorkspacesWithCodexSessionIds(data.windows[0].workspaces);
+    }
     saveSession(data);
     scheduleAutoSave();
   });
 
-  registerIpcHandlers(windowManager, cdpProxy);
+  registerIpcHandlers(windowManager);
 
   // Clear stale session data on version change (clean start for upgrades/fresh installs)
   handleVersionChange(app.getVersion());
@@ -190,20 +188,16 @@ app.whenReady().then(() => {
   const savedBounds = savedSession?.windows?.[0]?.bounds;
   windowManager.createWindow(savedBounds);
 
-  // Initialize auto-updater only when packaged (avoids errors in dev)
-  if (app.isPackaged) {
-    initAutoUpdater();
-  }
+  // Updates are explicit for this local fork.
+  void initAutoUpdater;
 
   // Kick off the first auto-save cycle after the window is ready
   scheduleAutoSave();
 
-  // Start named pipe server
+  // Start the named pipe used by shell integrations to report terminal state.
   pipeServer.start();
-  cdpProxy.start().catch(() => {}); // CDP proxy is optional — don't crash if ports are busy
 
-  // Watch TMPDIR for wmux-orchestrator runs and push state to the sidebar.
-  startOrchestrationWatcher();
+  // Legacy CDP proxy and orchestrator watcher are disabled.
 
   portScanner.onResults((portsByPid) => {
     BrowserWindow.getAllWindows().forEach(win => {
@@ -247,6 +241,12 @@ app.whenReady().then(() => {
     // Trigger port scan when requested from shell integration
     if (cmd.command === 'ports_kick') {
       portScanner.kick();
+    }
+    if (
+      cmd.command === 'report_pwd' ||
+      (cmd.command === 'report_shell_state' && (cmd.args?.[0] === 'idle' || cmd.args?.[0] === 'interrupted'))
+    ) {
+      clearSurfaceCodexActive(cmd.surfaceId);
     }
     // Forward metadata updates to all windows
     BrowserWindow.getAllWindows().forEach(win => {

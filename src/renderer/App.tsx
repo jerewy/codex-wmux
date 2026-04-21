@@ -12,6 +12,8 @@ import CommandPalette from './components/CommandPalette/CommandPalette';
 import BrowserPane from './components/Browser/BrowserPane';
 import Tutorial from './components/Tutorial/Tutorial';
 import { initPipeBridge } from './pipe-bridge';
+import { prepareWorkspacesForCodexAutoRestore, workspacesHaveCodexSession } from './utils/codex-restore';
+import { WorkspaceCompletion } from './components/Sidebar/workspace-status';
 
 const DEFAULT_SIDEBAR_WIDTH = 240;
 
@@ -69,6 +71,43 @@ function buildDefaultSplitTree(): SplitNode {
   };
 }
 
+function buildCodexSplitTree(initialCommand: string): SplitNode {
+  return {
+    type: 'leaf',
+    paneId: `pane-${uuid()}` as PaneId,
+    surfaces: [{
+      id: `surf-${uuid()}` as SurfaceId,
+      type: 'terminal',
+      customTitle: 'Codex',
+      initialCommand,
+    }],
+    activeSurfaceIndex: 0,
+  };
+}
+
+function getFolderName(path: string): string {
+  return path.split(/[\\/]/).filter(Boolean).pop() || 'Codex Session';
+}
+
+async function getStartupCodexFolder(): Promise<string> {
+  return await window.wmux?.system?.getDefaultProjectFolder?.() || 'C:\\dev';
+}
+
+function splitTreeHasCodexSurface(tree: SplitNode): boolean {
+  if (tree.type === 'branch') {
+    return splitTreeHasCodexSurface(tree.children[0]) || splitTreeHasCodexSurface(tree.children[1]);
+  }
+
+  return tree.surfaces.some((surface) => {
+    const startsCodex = typeof surface.initialCommand === 'string' && /^codex(\s|$)/i.test(surface.initialCommand.trim());
+    return surface.customTitle === 'Codex' || startsCodex || Boolean(surface.codexSessionId);
+  });
+}
+
+function isCodexWorkspace(workspace: WorkspaceInfo): boolean {
+  return splitTreeHasCodexSurface(workspace.splitTree);
+}
+
 export default function App() {
   const {
     workspaces,
@@ -94,13 +133,14 @@ export default function App() {
   const [focusedPaneId, setFocusedPaneId] = useState<PaneId | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
-  const [browserOpen, setBrowserOpen] = useState(true);
+  const [browserOpen, setBrowserOpen] = useState(false);
   const [browserWidth, setBrowserWidth] = useState(420);
   const [isResizingBrowser, setIsResizingBrowser] = useState(false);
   const [tutorialOpen, setTutorialOpen] = useState(false);
   const [notifPanelOpen, setNotifPanelOpen] = useState(false);
   // Per-workspace hook activity: workspaceId → { lastTool, toolCount, lastSeen }
   const [hookActivity, setHookActivity] = useState<Record<string, { lastTool: string; toolCount: number; lastSeen: number }>>({});
+  const [recentCompletions, setRecentCompletions] = useState<Record<string, WorkspaceCompletion>>({});
   // Per-surface Claude activity (parsed from terminal output)
   const [claudeActivity, setClaudeActivity] = useState<Record<string, any>>({});
   // Track when each workspace entered "running" state (for notification threshold)
@@ -134,11 +174,9 @@ export default function App() {
   }, [shortcuts, commandPaletteOpen]);
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH);
 
-  // Open tutorial on first launch
+  // Keep startup focused on the terminal. Help remains available from the titlebar.
   useEffect(() => {
-    if (!localStorage.getItem('wmux-tutorial-seen')) {
-      setTutorialOpen(true);
-    }
+    setTutorialOpen(false);
   }, []);
 
   const handleTutorialClose = useCallback(() => {
@@ -146,26 +184,66 @@ export default function App() {
     setTutorialOpen(false);
   }, []);
 
+  const pushAutoSave = useCallback(() => {
+    if (!window.wmux?.session?.pushAutoSave) return;
+    const state = useStore.getState();
+    if (state.workspaces.length === 0) return;
+
+    const data = {
+      version: 1,
+      windows: [{
+        bounds: { x: 0, y: 0, width: 0, height: 0 }, // main process fills real bounds
+        sidebarWidth,
+        activeWorkspaceId: state.activeWorkspaceId,
+        workspaces: state.workspaces.map(ws => ({
+          id: ws.id,
+          title: ws.title,
+          customColor: ws.customColor,
+          pinned: ws.pinned,
+          shell: ws.shell,
+          cwd: ws.cwd || '',
+          splitTree: ws.splitTree,
+          browserUrl: ws.browserUrl || '',
+        })),
+      }],
+    };
+    window.wmux.session.pushAutoSave(data);
+  }, [sidebarWidth]);
+
   // Initialize workspaces: try loading saved session first, then create default
   useEffect(() => {
     (async () => {
       try {
+        const autoSession = await window.wmux?.session?.loadAuto?.();
+        const autoWindow = autoSession?.windows?.[0];
+        if (autoWindow?.workspaces?.length > 0) {
+          if (workspacesHaveCodexSession(autoWindow.workspaces)) {
+            const { replaceAllWorkspaces } = useStore.getState();
+            replaceAllWorkspaces(prepareWorkspacesForCodexAutoRestore(autoWindow.workspaces));
+            if (autoWindow.sidebarWidth) setSidebarWidth(autoWindow.sidebarWidth);
+            return;
+          }
+        }
+
         const sessions = await window.wmux?.session?.list();
         if (sessions && sessions.length > 0) {
           const session = await window.wmux?.session?.load(sessions[0].name);
-          if (session) {
+          if (session && workspacesHaveCodexSession(session.workspaces)) {
             const { replaceAllWorkspaces } = useStore.getState();
-            replaceAllWorkspaces(session.workspaces);
+            replaceAllWorkspaces(prepareWorkspacesForCodexAutoRestore(session.workspaces));
             if (session.sidebarWidth) setSidebarWidth(session.sidebarWidth);
             return;
           }
         }
       } catch {}
-      // No saved session — create default workspace
+      // No Codex session saved yet: start Codex automatically like cmux.
       if (useStore.getState().workspaces.length === 0) {
+        const cwd = await getStartupCodexFolder();
         createWorkspace({
-          title: 'Session 1',
-          splitTree: buildDefaultSplitTree(),
+          title: getFolderName(cwd),
+          cwd,
+          shell: '',
+          splitTree: buildCodexSplitTree('codex resume --last --no-alt-screen'),
         });
       }
     })();
@@ -292,6 +370,16 @@ export default function App() {
         if (allSurfaces.includes(cmd.surfaceId)) {
           switch (cmd.command) {
             case 'report_pwd':
+              if (cmd.args?.[0]) {
+                const paneIds = getAllPaneIds(ws.splitTree);
+                for (const paneId of paneIds) {
+                  const leaf = findLeaf(ws.splitTree, paneId);
+                  if (leaf?.surfaces.some((surface) => surface.id === cmd.surfaceId)) {
+                    useStore.getState().updateSurface(ws.id, paneId, cmd.surfaceId as SurfaceId, { cwd: cmd.args[0] });
+                    break;
+                  }
+                }
+              }
               updateWorkspaceMetadata(ws.id, { cwd: cmd.args?.[0] });
               break;
             case 'report_git_branch': {
@@ -323,6 +411,14 @@ export default function App() {
               // Track when command started running
               if (newState === 'running') {
                 runningStartTimes.current[ws.id] = Date.now();
+                if (isCodexWorkspace(ws)) {
+                  setRecentCompletions((prev) => {
+                    if (!prev[ws.id]) return prev;
+                    const next = { ...prev };
+                    delete next[ws.id];
+                    return next;
+                  });
+                }
               }
 
               // Only notify for commands that ran longer than 5 seconds
@@ -330,6 +426,16 @@ export default function App() {
                 const startTime = runningStartTimes.current[ws.id];
                 const elapsed = startTime ? (Date.now() - startTime) / 1000 : 0;
                 delete runningStartTimes.current[ws.id];
+
+                if (newState === 'idle' && isCodexWorkspace(ws)) {
+                  setRecentCompletions((prev) => ({
+                    ...prev,
+                    [ws.id]: {
+                      finishedAt: Date.now(),
+                      durationMs: startTime ? Date.now() - startTime : undefined,
+                    },
+                  }));
+                }
 
                 if (elapsed >= 5) {
                   const duration = elapsed >= 60
@@ -419,28 +525,22 @@ export default function App() {
   // Respond to main process auto-save requests (30s timer + on quit)
   useEffect(() => {
     if (!window.wmux?.session?.onAutoSaveRequest) return;
-    const unsub = window.wmux.session.onAutoSaveRequest(() => {
-      const state = useStore.getState();
-      const data = {
-        version: 1,
-        windows: [{
-          bounds: { x: 0, y: 0, width: 0, height: 0 }, // main process fills real bounds
-          sidebarWidth,
-          activeWorkspaceId: state.activeWorkspaceId,
-          workspaces: state.workspaces.map(ws => ({
-            id: ws.id,
-            title: ws.title,
-            customColor: ws.customColor,
-            pinned: ws.pinned,
-            shell: ws.shell,
-            splitTree: ws.splitTree,
-          })),
-        }],
-      };
-      window.wmux.session.pushAutoSave(data);
-    });
+    const unsub = window.wmux.session.onAutoSaveRequest(pushAutoSave);
     return unsub;
-  }, [sidebarWidth]);
+  }, [pushAutoSave]);
+
+  // Save shortly after layout/workspace changes so accidental closes do not lose
+  // a newly opened Codex session before the 30s main-process timer fires.
+  useEffect(() => {
+    if (workspaces.length === 0) return;
+    const timer = window.setTimeout(pushAutoSave, 750);
+    return () => window.clearTimeout(timer);
+  }, [workspaces, activeWorkspaceId, sidebarWidth, pushAutoSave]);
+
+  useEffect(() => {
+    window.addEventListener('beforeunload', pushAutoSave);
+    return () => window.removeEventListener('beforeunload', pushAutoSave);
+  }, [pushAutoSave]);
 
   // Auto-focus first pane whenever the active workspace changes or gains its first pane
   const activeWorkspace = workspaces.find((w) => w.id === activeWorkspaceId) ?? null;
@@ -605,6 +705,7 @@ export default function App() {
             onUpdateMetadata={handleUpdateMetadata}
             hookActivity={hookActivity}
             claudeActivity={claudeActivity}
+            recentCompletions={recentCompletions}
             onSaveSession={handleSaveSession}
             onLoadSession={handleLoadSession}
             onCollapse={toggleSidebar}

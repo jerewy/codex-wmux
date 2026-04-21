@@ -1,5 +1,5 @@
 /**
- * user-config.ts — Loads `~/.wmux/config.toml` and maps it to partial
+ * user-config.ts — Loads `~/.codex-terminal/config.toml` and maps it to partial
  * TerminalPrefs + named user color schemes.
  *
  * Shape (matches issue #4):
@@ -26,7 +26,7 @@
  *
  * File-wins-at-startup, app-wins-at-runtime: this data seeds the store
  * on boot; users can still tweak via the Settings UI afterwards.
- * A `wmux reload-config` command re-applies the file over runtime state.
+ * A `codex-terminal reload-config` command re-applies the file over runtime state.
  */
 import * as fs from 'fs';
 import * as os from 'os';
@@ -61,7 +61,7 @@ export interface UserConfig {
 
 export function getConfigPath(): string {
   const home = os.homedir();
-  return path.join(home, '.wmux', 'config.toml');
+  return path.join(home, '.codex-terminal', 'config.toml');
 }
 
 export function loadUserConfig(filePath: string = getConfigPath()): UserConfig {

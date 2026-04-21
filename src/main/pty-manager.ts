@@ -51,19 +51,6 @@ function resolveShell(shell: string | undefined): string {
   return getDefaultShell();
 }
 
-function getShellIntegrationPath(): string {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { app } = require('electron') as typeof import('electron');
-    if (app.isPackaged) {
-      return path.join(process.resourcesPath, 'shell-integration');
-    }
-  } catch {
-    // Not running in Electron (e.g., during tests)
-  }
-  return path.join(__dirname, '../../src/shell-integration');
-}
-
 function getCliPath(): string {
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -77,12 +64,49 @@ function getCliPath(): string {
   return path.join(__dirname, '../cli/wmux.js');
 }
 
+function getShellIntegrationPath(scriptName: string): string {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { app } = require('electron') as typeof import('electron');
+    if (app.isPackaged) {
+      return path.join(process.resourcesPath, 'shell-integration', scriptName);
+    }
+  } catch {
+    // Not running in Electron
+  }
+  return path.resolve(path.join(__dirname, '../../src/shell-integration', scriptName));
+}
+
 function getShellType(shell: string): 'powershell' | 'cmd' | 'wsl' | 'unknown' {
   const lower = shell.toLowerCase();
   if (lower.includes('pwsh') || lower.includes('powershell')) return 'powershell';
   if (lower.includes('cmd')) return 'cmd';
   if (lower.includes('wsl')) return 'wsl';
   return 'unknown';
+}
+
+function escapePowerShellSingleQuoted(value: string): string {
+  return value.replace(/'/g, "''");
+}
+
+export function getShellLaunchArgs(shell: string): string[] {
+  switch (getShellType(shell)) {
+    case 'powershell': {
+      const integrationPath = getShellIntegrationPath('wmux-powershell-integration.ps1');
+      return [
+        '-NoLogo',
+        '-NoExit',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-Command',
+        `. '${escapePowerShellSingleQuoted(integrationPath)}'`,
+      ];
+    }
+    case 'cmd':
+      return ['/K', getShellIntegrationPath('wmux-cmd-integration.cmd')];
+    default:
+      return [];
+  }
 }
 
 interface PtyEntry {
@@ -95,6 +119,7 @@ export interface CreateOptions {
   shell: string;
   cwd: string;
   env: Record<string, string>;
+  initialCommand?: string;
   cols?: number;
   rows?: number;
   /** When provided, use this as the PTY key instead of generating a new one.
@@ -105,12 +130,11 @@ export interface CreateOptions {
 export class PtyManager {
   private ptys = new Map<SurfaceId, PtyEntry>();
 
-  create(options: CreateOptions): { id: SurfaceId; shell: string } {
+  create(options: CreateOptions): { id: SurfaceId; shell: string; cwd: string } {
     const id: SurfaceId = options.surfaceId ?? `surf-${uuidv4()}` as SurfaceId;
 
     const shell = resolveShell(options.shell);
-    const shellType = getShellType(shell);
-    const integrationDir = getShellIntegrationPath();
+    const cwd = options.cwd || process.env.USERPROFILE || process.env.HOME || process.cwd();
     const cliPath = getCliPath();
     // Filter out undefined values from process.env before merging
     const processEnvClean = Object.fromEntries(
@@ -123,24 +147,20 @@ export class PtyManager {
       WMUX_SURFACE_ID: id,
       WMUX_PIPE: '\\\\.\\pipe\\wmux',
       WMUX_CLI: cliPath,
+      WMUX_INTEGRATION: '1',
+      CODEX_TERMINAL: '1',
+      CODEX_TERMINAL_SURFACE_ID: id,
+      CODEX_TERMINAL_CLI: cliPath,
+      CODEX_TERMINAL_INTEGRATION: '1',
     };
 
-    let args: string[] = [];
-    if (shellType === 'powershell') {
-      const script = path.join(integrationDir, 'wmux-powershell-integration.ps1');
-      args = ['-NoLogo', '-ExecutionPolicy', 'Bypass', '-NoExit', '-Command', `. "${script}"`];
-    } else if (shellType === 'cmd') {
-      const script = path.join(integrationDir, 'wmux-cmd-integration.cmd');
-      args = ['/K', script];
-    } else if (shellType === 'wsl') {
-      env.WMUX_INTEGRATION = '1';
-    }
+    const args = getShellLaunchArgs(shell);
 
     const ptyProcess = pty.spawn(shell, args, {
       name: 'xterm-256color',
       cols: options.cols ?? 80,
       rows: options.rows ?? 24,
-      cwd: options.cwd,
+      cwd,
       env,
       useConpty: true,
     });
@@ -165,7 +185,16 @@ export class PtyManager {
     });
 
     this.ptys.set(id, entry);
-    return { id, shell };
+
+    if (options.initialCommand) {
+      setTimeout(() => {
+        if (this.ptys.has(id)) {
+          ptyProcess.write(`${options.initialCommand}\r`);
+        }
+      }, 500);
+    }
+
+    return { id, shell, cwd };
   }
 
   write(id: SurfaceId, data: string): void {

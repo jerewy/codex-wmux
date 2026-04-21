@@ -1,129 +1,160 @@
-import { describe, it, expect, afterEach } from 'vitest';
-import { PtyManager } from '../../src/main/pty-manager';
+import { describe, it, expect, afterEach, vi } from 'vitest';
+import { EventEmitter } from 'events';
+import { PtyManager, getShellLaunchArgs } from '../../src/main/pty-manager';
 
-const TEST_SHELL = 'cmd.exe';
-const TEST_ENV = Object.fromEntries(
-  Object.entries(process.env).filter(([, v]) => v !== undefined)
-) as Record<string, string>;
+const spawned = vi.hoisted(() => [] as Array<{
+  shell: string;
+  args: string[];
+  options: any;
+  instance: MockPty;
+}>);
+
+class MockPty extends EventEmitter {
+  pid = 1234;
+  killed = false;
+  resized: Array<[number, number]> = [];
+  writes: string[] = [];
+
+  write(data: string): void {
+    this.writes.push(data);
+    this.emit('data', data);
+  }
+
+  resize(cols: number, rows: number): void {
+    this.resized.push([cols, rows]);
+  }
+
+  kill(): void {
+    this.killed = true;
+    this.emit('exit', { exitCode: 0 });
+  }
+
+  onData(callback: (data: string) => void): void {
+    this.on('data', callback);
+  }
+
+  onExit(callback: (event: { exitCode: number }) => void): void {
+    this.on('exit', callback);
+  }
+}
+
+vi.mock('node-pty', () => ({
+  spawn: vi.fn((shell: string, args: string[], options: any) => {
+    const instance = new MockPty();
+    spawned.push({ shell, args, options, instance });
+    return instance;
+  }),
+}));
 
 describe('PtyManager', () => {
   const managers: PtyManager[] = [];
 
   function makeManager(): PtyManager {
-    const m = new PtyManager();
-    managers.push(m);
-    return m;
+    const manager = new PtyManager();
+    managers.push(manager);
+    return manager;
   }
 
   afterEach(() => {
-    for (const m of managers) {
-      m.killAll();
+    for (const manager of managers) {
+      manager.killAll();
     }
     managers.length = 0;
+    spawned.length = 0;
+    vi.clearAllMocks();
   });
 
-  it('create returns a surf- prefixed SurfaceId', () => {
+  it('create returns a surf-prefixed id and resolved shell', () => {
     const manager = makeManager();
-    const id = manager.create({
-      shell: TEST_SHELL,
+    const created = manager.create({
+      shell: 'cmd.exe',
       cwd: process.env.USERPROFILE || 'C:\\',
-      env: TEST_ENV,
+      env: {},
     });
-    expect(id).toMatch(/^surf-/);
+
+    expect(created.id).toMatch(/^surf-/);
+    expect(created.shell).toBe('cmd.exe');
   });
 
-  it('has() returns true after create and false after kill', () => {
+  it('keeps PTY ids addressable until killed', () => {
     const manager = makeManager();
-    const id = manager.create({
-      shell: TEST_SHELL,
+    const created = manager.create({
+      shell: 'cmd.exe',
       cwd: process.env.USERPROFILE || 'C:\\',
-      env: TEST_ENV,
+      env: {},
     });
-    expect(manager.has(id)).toBe(true);
-    manager.kill(id);
-    expect(manager.has(id)).toBe(false);
+
+    expect(manager.has(created.id)).toBe(true);
+    manager.kill(created.id);
+    expect(manager.has(created.id)).toBe(false);
   });
 
-  it('write does not throw', () => {
+  it('passes wmux metadata env vars into spawned shells', () => {
     const manager = makeManager();
-    const id = manager.create({
-      shell: TEST_SHELL,
-      cwd: process.env.USERPROFILE || 'C:\\',
-      env: TEST_ENV,
+    const created = manager.create({
+      shell: 'cmd.exe',
+      cwd: 'C:\\dev',
+      env: { CUSTOM_FLAG: '1' },
     });
-    expect(() => manager.write(id, 'echo hello\r')).not.toThrow();
+
+    expect(spawned[0].options.cwd).toBe('C:\\dev');
+    expect(spawned[0].options.env.CUSTOM_FLAG).toBe('1');
+    expect(spawned[0].options.env.WMUX).toBe('1');
+    expect(spawned[0].options.env.WMUX_SURFACE_ID).toBe(created.id);
+    expect(spawned[0].options.env.WMUX_PIPE).toBe('\\\\.\\pipe\\wmux');
+    expect(spawned[0].options.env.WMUX_CLI).toContain('wmux.js');
+    expect(spawned[0].options.env.WMUX_INTEGRATION).toBe('1');
   });
 
-  it('resize does not throw', () => {
-    const manager = makeManager();
-    const id = manager.create({
-      shell: TEST_SHELL,
-      cwd: process.env.USERPROFILE || 'C:\\',
-      env: TEST_ENV,
-    });
-    expect(() => manager.resize(id, 120, 40)).not.toThrow();
+  it('starts PowerShell through the wmux integration script', () => {
+    const args = getShellLaunchArgs('powershell.exe');
+
+    expect(args).toContain('-NoExit');
+    expect(args).toContain('-ExecutionPolicy');
+    expect(args).toContain('Bypass');
+    expect(args.at(-1)).toContain('wmux-powershell-integration.ps1');
   });
 
-  it('receives data from PTY after writing', async () => {
-    const manager = makeManager();
-    const id = manager.create({
-      shell: TEST_SHELL,
-      cwd: process.env.USERPROFILE || 'C:\\',
-      env: TEST_ENV,
-      cols: 80,
-      rows: 24,
-    });
+  it('starts cmd through the wmux integration script', () => {
+    const args = getShellLaunchArgs('cmd.exe');
 
-    const received = await new Promise<string>((resolve) => {
-      const unsub = manager.onData(id, (data) => {
-        unsub();
-        resolve(data);
-      });
-      // Write something to trigger output; initial prompt should arrive shortly
-    });
-
-    expect(typeof received).toBe('string');
-    expect(received.length).toBeGreaterThan(0);
+    expect(args[0]).toBe('/K');
+    expect(args[1]).toContain('wmux-cmd-integration.cmd');
   });
 
-  it('kill removes the PTY from the manager', () => {
+  it('write, resize, and getPid target the created PTY', () => {
     const manager = makeManager();
-    const id = manager.create({
-      shell: TEST_SHELL,
+    const created = manager.create({
+      shell: 'cmd.exe',
       cwd: process.env.USERPROFILE || 'C:\\',
-      env: TEST_ENV,
+      env: {},
     });
-    expect(manager.has(id)).toBe(true);
-    manager.kill(id);
-    expect(manager.has(id)).toBe(false);
-  });
 
-  it('getPid returns a numeric PID', () => {
-    const manager = makeManager();
-    const id = manager.create({
-      shell: TEST_SHELL,
-      cwd: process.env.USERPROFILE || 'C:\\',
-      env: TEST_ENV,
-    });
-    const pid = manager.getPid(id);
-    expect(typeof pid).toBe('number');
-    expect(pid).toBeGreaterThan(0);
+    manager.write(created.id, 'echo hello\r');
+    manager.resize(created.id, 120, 40);
+
+    expect(spawned[0].instance.writes).toEqual(['echo hello\r']);
+    expect(spawned[0].instance.resized).toEqual([[120, 40]]);
+    expect(manager.getPid(created.id)).toBe(1234);
   });
 
   it('killAll removes all PTYs', () => {
     const manager = makeManager();
-    const id1 = manager.create({
-      shell: TEST_SHELL,
+    const first = manager.create({
+      shell: 'cmd.exe',
       cwd: process.env.USERPROFILE || 'C:\\',
-      env: TEST_ENV,
+      env: {},
     });
-    const id2 = manager.create({
-      shell: TEST_SHELL,
+    const second = manager.create({
+      shell: 'cmd.exe',
       cwd: process.env.USERPROFILE || 'C:\\',
-      env: TEST_ENV,
+      env: {},
     });
+
     manager.killAll();
-    expect(manager.has(id1)).toBe(false);
-    expect(manager.has(id2)).toBe(false);
+
+    expect(manager.has(first.id)).toBe(false);
+    expect(manager.has(second.id)).toBe(false);
+    expect(spawned.every((entry) => entry.instance.killed)).toBe(true);
   });
 });

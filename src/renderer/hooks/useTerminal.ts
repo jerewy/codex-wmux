@@ -32,6 +32,7 @@ interface UseTerminalOptions {
   focused?: boolean;
   /** Per-surface color scheme override — takes priority over terminalPrefs.theme. */
   colorScheme?: string;
+  initialCommand?: string;
 }
 
 interface UseTerminalResult {
@@ -55,14 +56,33 @@ function findSurfaceLocation(node: SplitNode, surfaceId: string): { paneId: stri
   return findSurfaceLocation(node.children[0], surfaceId) || findSurfaceLocation(node.children[1], surfaceId);
 }
 
-function setResolvedShellForSurface(surfaceId: string | undefined, resolvedShell: string): void {
-  if (!surfaceId || !resolvedShell) return;
+function setResolvedTerminalStateForSurface(
+  surfaceId: string | undefined,
+  resolved: { shell?: string; cwd?: string },
+): void {
+  if (!surfaceId || (!resolved.shell && !resolved.cwd)) return;
   const state = useStore.getState();
   const workspace = state.workspaces.find((ws) => treeHasSurface(ws.splitTree, surfaceId));
   if (!workspace) return;
   const location = findSurfaceLocation(workspace.splitTree, surfaceId);
   if (!location) return;
-  state.updateSurface(workspace.id, location.paneId as any, surfaceId as any, { shell: resolvedShell });
+  if (resolved.shell) {
+    state.updateSurface(workspace.id, location.paneId as any, surfaceId as any, { shell: resolved.shell });
+  }
+  if (resolved.cwd) {
+    state.updateSurface(workspace.id, location.paneId as any, surfaceId as any, { cwd: resolved.cwd });
+    if (!workspace.cwd) {
+      state.updateWorkspaceMetadata(workspace.id, { cwd: resolved.cwd });
+    }
+  }
+}
+
+function markTerminalActivityForSurface(surfaceId: string | undefined): void {
+  if (!surfaceId) return;
+  const state = useStore.getState();
+  const workspace = state.workspaces.find((ws) => treeHasSurface(ws.splitTree, surfaceId));
+  if (!workspace) return;
+  state.updateWorkspaceMetadata(workspace.id, { terminalLastActivity: Date.now() });
 }
 
 /**
@@ -122,13 +142,14 @@ async function fetchTheme(name: string): Promise<ThemeConfig> {
   }
 }
 
-export function useTerminal({ surfaceId, shell, cwd, visible = true, focused = true, colorScheme }: UseTerminalOptions = {}): UseTerminalResult {
+export function useTerminal({ surfaceId, shell, cwd, visible = true, focused = true, colorScheme, initialCommand }: UseTerminalOptions = {}): UseTerminalResult {
   const terminalRef = useRef<HTMLDivElement | null>(null);
   const xtermRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const searchAddonRef = useRef<SearchAddon | null>(null);
   const ptyIdRef = useRef<string | null>(null);
   const cleanupFnsRef = useRef<Array<() => void>>([]);
+  const lastActivityMarkRef = useRef(0);
 
   // Subscribe to relevant settings so changes apply live.
   const prefs = useStore((s) => s.terminalPrefs);
@@ -326,9 +347,16 @@ export function useTerminal({ surfaceId, shell, cwd, visible = true, focused = t
     const attachToPty = (id: string) => {
       ptyId = id;
       ptyIdRef.current = id;
+      const markActivity = () => {
+        const now = Date.now();
+        if (now - lastActivityMarkRef.current < 500) return;
+        lastActivityMarkRef.current = now;
+        markTerminalActivityForSurface(surfaceId ?? id);
+      };
 
       // Wire PTY data → xterm
       const unsubData = window.wmux.pty.onData(id, (data: string) => {
+        if (data) markActivity();
         terminal.write(data);
       });
 
@@ -354,9 +382,9 @@ export function useTerminal({ surfaceId, shell, cwd, visible = true, focused = t
           attachToPty(surfaceId!);
         } else {
           // No existing PTY — create a new one, passing surfaceId so PTY ID = Surface ID
-          window.wmux.pty.create({ shell: shell || '', cwd: cwd ?? '', env: {}, surfaceId })
-            .then((created: { id: string; shell: string }) => {
-              setResolvedShellForSurface(surfaceId, created.shell);
+          window.wmux.pty.create({ shell: shell || '', cwd: cwd ?? '', env: {}, surfaceId, initialCommand })
+            .then((created: { id: string; shell: string; cwd?: string }) => {
+              setResolvedTerminalStateForSurface(surfaceId, { shell: created.shell, cwd: created.cwd });
               attachToPty(created.id);
             })
             .catch((err: unknown) => terminal.writeln(`\r\n\x1b[31m[failed to create PTY: ${err}]\x1b[0m`));
@@ -364,9 +392,9 @@ export function useTerminal({ surfaceId, shell, cwd, visible = true, focused = t
       });
     } else {
       // No surfaceId hint — always create new PTY
-      window.wmux.pty.create({ shell: shell || '', cwd: cwd ?? '', env: {} })
-        .then((created: { id: string; shell: string }) => {
-          setResolvedShellForSurface(surfaceId, created.shell);
+      window.wmux.pty.create({ shell: shell || '', cwd: cwd ?? '', env: {}, initialCommand })
+        .then((created: { id: string; shell: string; cwd?: string }) => {
+          setResolvedTerminalStateForSurface(surfaceId, { shell: created.shell, cwd: created.cwd });
           attachToPty(created.id);
         })
         .catch((err: unknown) => terminal.writeln(`\r\n\x1b[31m[failed to create PTY: ${err}]\x1b[0m`));
@@ -375,6 +403,7 @@ export function useTerminal({ surfaceId, shell, cwd, visible = true, focused = t
     // Wire xterm input → PTY
     const dataDisposable = terminal.onData((data: string) => {
       if (ptyIdRef.current) {
+        if (data) markTerminalActivityForSurface(surfaceId ?? ptyIdRef.current);
         window.wmux.pty.write(ptyIdRef.current, data);
       }
     });

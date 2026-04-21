@@ -50,6 +50,9 @@
   padding: 8px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
   position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .sidebar__new-btn {
@@ -215,6 +218,18 @@
 
 .workspace-row--active .workspace-row__status {
   color: rgba(255, 255, 255, 0.8);
+}
+
+.workspace-row--active .workspace-row__status--working {
+  color: #ffd08a;
+}
+
+.workspace-row--active .workspace-row__status--done {
+  color: #9af0a1;
+}
+
+.workspace-row--active .workspace-row__status--interrupted {
+  color: #ffc1c1;
 }
 
 /* Context line: "branch* · ~/path/to/dir" */
@@ -523,7 +538,12 @@
 }
 
 .workspace-row__state-dot--idle {
-  background: #4caf50;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.workspace-row__state-dot--done {
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.25);
 }
 
 .workspace-row__state-dot--interrupted {

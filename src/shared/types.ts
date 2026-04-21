@@ -16,6 +16,9 @@ export interface SurfaceRef {
   type: SurfaceType;
   customTitle?: string;
   shell?: string;
+  cwd?: string;
+  initialCommand?: string;
+  codexSessionId?: string;
   /** Per-surface color scheme override (bundled theme name or user-defined scheme name). */
   colorScheme?: string;
 }
@@ -38,6 +41,7 @@ export interface WorkspaceInfo {
   ports?: number[];
   notificationText?: string;
   shellState?: 'idle' | 'running' | 'interrupted';
+  terminalLastActivity?: number;
   browserUrl?: string;
 }
 
@@ -227,6 +231,7 @@ export const IPC_CHANNELS = {
   // System
   SYSTEM_GET_SHELLS: 'system:getShells',
   SYSTEM_OPEN_EXTERNAL: 'system:openExternal',
+  CHAT_SAVE_TRANSCRIPT: 'chat:saveTranscript',
   // Metadata events (main → renderer)
   METADATA_UPDATE: 'metadata:update',
   // Agent
@@ -256,6 +261,7 @@ export const IPC_CHANNELS = {
   CLAUDE_ACTIVITY: 'claude:activity',
   // Named sessions
   SESSION_SAVE_NAMED: 'session:save-named',
+  SESSION_LOAD_AUTO: 'session:load-auto',
   SESSION_LOAD_NAMED: 'session:load-named',
   SESSION_LIST_NAMED: 'session:list-named',
   SESSION_DELETE_NAMED: 'session:delete-named',

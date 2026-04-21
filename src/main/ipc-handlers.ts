@@ -1,4 +1,4 @@
-import { ipcMain, BrowserWindow, clipboard, shell } from 'electron';
+import { ipcMain, BrowserWindow, clipboard, dialog, shell } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -14,8 +14,9 @@ import { WindowManager } from './window-manager';
 import { CDPBridge } from './cdp-bridge';
 import { CDPProxy } from './cdp-proxy';
 import { AgentManager } from './agent-manager';
-import { saveNamedSession, loadNamedSession, listNamedSessions, deleteNamedSession } from './session-persistence';
+import { loadSession, saveNamedSession, loadNamedSession, listNamedSessions, deleteNamedSession } from './session-persistence';
 import { getChangedFiles, getFileDiff } from './diff-provider';
+import { enrichWorkspacesWithCodexSessionIds, observePtyInputForCodex } from './codex-session-resolver';
 
 const ptyManager = new PtyManager();
 const notificationManager = new NotificationManager();
@@ -67,6 +68,7 @@ export function registerIpcHandlers(windowManager: WindowManager, cdpProxyInstan
   });
 
   ipcMain.on(IPC_CHANNELS.PTY_WRITE, (_event, id: SurfaceId, data: string) => {
+    observePtyInputForCodex(id, data);
     ptyManager.write(id, data);
   });
 
@@ -86,10 +88,59 @@ export function registerIpcHandlers(windowManager: WindowManager, cdpProxyInstan
     return detectShells();
   });
 
+  ipcMain.handle('system:pickProjectFolder', async () => {
+    const result = await dialog.showOpenDialog({
+      title: 'Choose a project for Codex',
+      defaultPath: fs.existsSync('C:\\dev') ? 'C:\\dev' : os.homedir(),
+      properties: ['openDirectory'],
+    });
+    return result.canceled ? null : result.filePaths[0];
+  });
+
+  ipcMain.handle('system:getDefaultProjectFolder', async () => {
+    return fs.existsSync('C:\\dev') ? 'C:\\dev' : os.homedir();
+  });
+
   ipcMain.on(IPC_CHANNELS.SYSTEM_OPEN_EXTERNAL, (_event, url: string) => {
     if (typeof url === 'string' && (url.startsWith('https://') || url.startsWith('http://'))) {
       shell.openExternal(url);
     }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.CHAT_SAVE_TRANSCRIPT, async (event, data: { transcript?: string; suggestedName?: string }) => {
+    const transcript = data?.transcript ?? '';
+    if (!transcript.trim()) {
+      return { canceled: true };
+    }
+
+    const safeName = (data.suggestedName || 'codex-chat')
+      .replace(/[<>:"/\\|?*\x00-\x1F]/g, '-')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 80) || 'codex-chat';
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const exportDir = path.join(os.homedir(), 'Documents', 'Codex Terminal Chats');
+    fs.mkdirSync(exportDir, { recursive: true });
+
+    const saveDialogOptions = {
+      title: 'Save Codex chat transcript',
+      defaultPath: path.join(exportDir, `${safeName}-${timestamp}.txt`),
+      filters: [
+        { name: 'Text transcript', extensions: ['txt'] },
+        { name: 'All files', extensions: ['*'] },
+      ],
+    };
+    const parentWindow = BrowserWindow.fromWebContents(event.sender);
+    const result = parentWindow
+      ? await dialog.showSaveDialog(parentWindow, saveDialogOptions)
+      : await dialog.showSaveDialog(saveDialogOptions);
+
+    if (result.canceled || !result.filePath) {
+      return { canceled: true };
+    }
+
+    fs.writeFileSync(result.filePath, transcript, 'utf-8');
+    return { canceled: false, filePath: result.filePath };
   });
 
   // Config / Theme handlers
@@ -188,11 +239,25 @@ export function registerIpcHandlers(windowManager: WindowManager, cdpProxyInstan
   });
 
   ipcMain.handle(IPC_CHANNELS.SESSION_SAVE_NAMED, (_event, session: any) => {
+    if (Array.isArray(session?.workspaces)) {
+      session.workspaces = enrichWorkspacesWithCodexSessionIds(session.workspaces);
+    }
     saveNamedSession(session);
     return { ok: true };
   });
+  ipcMain.handle(IPC_CHANNELS.SESSION_LOAD_AUTO, () => {
+    const session = loadSession();
+    if (session?.windows?.[0]?.workspaces) {
+      session.windows[0].workspaces = enrichWorkspacesWithCodexSessionIds(session.windows[0].workspaces);
+    }
+    return session;
+  });
   ipcMain.handle(IPC_CHANNELS.SESSION_LOAD_NAMED, (_event, name: string) => {
-    return loadNamedSession(name);
+    const session = loadNamedSession(name);
+    if (Array.isArray(session?.workspaces)) {
+      session.workspaces = enrichWorkspacesWithCodexSessionIds(session.workspaces);
+    }
+    return session;
   });
   ipcMain.handle(IPC_CHANNELS.SESSION_LIST_NAMED, () => {
     return listNamedSessions();

@@ -3,7 +3,7 @@ import { IPC_CHANNELS } from '../shared/types';
 
 contextBridge.exposeInMainWorld('wmux', {
   pty: {
-    create: (options: { shell: string; cwd: string; env: Record<string, string>; surfaceId?: string }) =>
+    create: (options: { shell: string; cwd: string; env: Record<string, string>; surfaceId?: string; initialCommand?: string }) =>
       ipcRenderer.invoke(IPC_CHANNELS.PTY_CREATE, options) as Promise<{ id: string; shell: string }>,
     write: (id: string, data: string) =>
       ipcRenderer.send(IPC_CHANNELS.PTY_WRITE, id, data),
@@ -31,6 +31,8 @@ contextBridge.exposeInMainWorld('wmux', {
   system: {
     platform: 'win32' as const,
     getShells: () => ipcRenderer.invoke(IPC_CHANNELS.SYSTEM_GET_SHELLS),
+    getDefaultProjectFolder: () => ipcRenderer.invoke('system:getDefaultProjectFolder') as Promise<string>,
+    pickProjectFolder: () => ipcRenderer.invoke('system:pickProjectFolder') as Promise<string | null>,
     openExternal: (url: string) => ipcRenderer.send(IPC_CHANNELS.SYSTEM_OPEN_EXTERNAL, url),
     toggleDevTools: () => ipcRenderer.send('toggle-devtools'),
   },
@@ -82,6 +84,10 @@ contextBridge.exposeInMainWorld('wmux', {
   clipboard: {
     pasteImage: () => ipcRenderer.invoke('clipboard:paste-image'),
   },
+  chat: {
+    saveTranscript: (data: { transcript: string; suggestedName?: string }) =>
+      ipcRenderer.invoke(IPC_CHANNELS.CHAT_SAVE_TRANSCRIPT, data) as Promise<{ canceled: boolean; filePath?: string }>,
+  },
   hook: {
     onEvent: (callback: (event: any) => void) => {
       const handler = (_event: any, data: any) => callback(data);
@@ -110,6 +116,7 @@ contextBridge.exposeInMainWorld('wmux', {
   },
   session: {
     save: (session: any) => ipcRenderer.invoke(IPC_CHANNELS.SESSION_SAVE_NAMED, session),
+    loadAuto: () => ipcRenderer.invoke(IPC_CHANNELS.SESSION_LOAD_AUTO),
     load: (name: string) => ipcRenderer.invoke(IPC_CHANNELS.SESSION_LOAD_NAMED, name),
     list: () => ipcRenderer.invoke(IPC_CHANNELS.SESSION_LIST_NAMED),
     delete: (name: string) => ipcRenderer.invoke(IPC_CHANNELS.SESSION_DELETE_NAMED, name),

@@ -2,6 +2,7 @@ import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { WorkspaceInfo, SplitNode } from '../../../shared/types';
 import UnreadBadge from './UnreadBadge';
 import PrStatusIcon from './PrStatusIcon';
+import { deriveWorkspaceRowStatus, WorkspaceCompletion } from './workspace-status';
 
 function getAllSurfaceIds(tree: SplitNode): string[] {
   if (tree.type === 'leaf') return tree.surfaces.map(s => s.id);
@@ -41,6 +42,7 @@ interface WorkspaceRowProps {
   agentCount?: number;
   hookActivity?: { lastTool: string; toolCount: number; lastSeen: number };
   claudeActivity?: Record<string, any>;
+  recentCompletion?: WorkspaceCompletion;
 }
 
 export default function WorkspaceRow({
@@ -56,9 +58,10 @@ export default function WorkspaceRow({
   onDrop,
   onDragEnd,
   isDragOver = false,
-  agentCount = 0,
+  agentCount: _agentCount = 0,
   hookActivity,
   claudeActivity,
+  recentCompletion,
 }: WorkspaceRowProps) {
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(workspace.title);
@@ -107,6 +110,7 @@ export default function WorkspaceRow({
 
   // How long a tool label persists after the last hook/observer event (ms)
   const ACTIVITY_TTL = 5000;
+  const COMPLETION_TTL = 120000;
 
   // ── Determine if Claude is actively working (recent hook or observer data) ──
   const isClaudeActive = useMemo(() => {
@@ -114,7 +118,6 @@ export default function WorkspaceRow({
     if (hookActivity && now - hookActivity.lastSeen < ACTIVITY_TTL) return true;
     if (wsActivity && now - wsActivity.lastUpdate < ACTIVITY_TTL) return true;
     return false;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hookActivity, wsActivity, tick]);
 
   // ── Current tool label (from observer or hooks) ──
@@ -129,7 +132,6 @@ export default function WorkspaceRow({
       return getToolLabel(hookActivity.lastTool);
     }
     return null;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wsActivity, hookActivity, tick]);
 
   // ── Detect "Claude was active but stopped" (shell still says running) ──
@@ -138,44 +140,12 @@ export default function WorkspaceRow({
     if (!hookActivity) return false;
     const now = Date.now();
     return now - hookActivity.lastSeen >= ACTIVITY_TTL;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspace.shellState, hookActivity, tick]);
 
-  // ── Status text: tool activity > shell state > default ──
-  const statusText = useMemo(() => {
-    // Priority 1: Claude is actively using a tool
-    if (currentToolLabel) return currentToolLabel;
-
-    // Priority 2: Claude was working but stopped → idle, not "Running"
-    if (claudeIsIdle) return 'Idle';
-
-    // Priority 3: Shell state from shell integration
-    const state = workspace.shellState;
-    if (state === 'running') return 'Running';
-    if (state === 'interrupted') return 'Interrupted';
-    if (state === 'idle') {
-      return workspace.notificationText
-        ? `Done: ${workspace.notificationText}`
-        : 'Idle';
-    }
-
-    // Priority 4: Notification text without shell state
-    if (workspace.notificationText) return workspace.notificationText;
-
-    // Priority 5: Default — always show something
-    return 'Idle';
-  }, [currentToolLabel, claudeIsIdle, workspace.shellState, workspace.notificationText]);
-
-  // ── Status color class ──
-  const statusClass = useMemo(() => {
-    if (currentToolLabel) return 'workspace-row__status--working';
-    if (claudeIsIdle) return 'workspace-row__status--idle';
-    const state = workspace.shellState;
-    if (state === 'running') return 'workspace-row__status--running';
-    if (state === 'interrupted') return 'workspace-row__status--interrupted';
-    if (state === 'idle') return 'workspace-row__status--done';
-    return 'workspace-row__status--idle';
-  }, [currentToolLabel, claudeIsIdle, workspace.shellState]);
+  const hasRecentTerminalActivity = useMemo(() => {
+    if (!workspace.terminalLastActivity) return false;
+    return Date.now() - workspace.terminalLastActivity < ACTIVITY_TTL;
+  }, [workspace.terminalLastActivity, tick]);
 
   // ── Context line: "branch* · ~/path/to/dir" ──
   const contextLine = useMemo(() => {
@@ -193,15 +163,17 @@ export default function WorkspaceRow({
     return parts.length > 0 ? parts.join(' · ') : null;
   }, [workspace.gitBranch, workspace.gitDirty, workspace.cwd]);
 
-  // ── State dot class — pulsing when Claude is active ──
-  const stateDotClass = useMemo(() => {
-    if (isClaudeActive) return 'workspace-row__state-dot--running';
-    if (claudeIsIdle) return 'workspace-row__state-dot--idle';
-    if (workspace.shellState === 'running') return 'workspace-row__state-dot--running';
-    if (workspace.shellState === 'interrupted') return 'workspace-row__state-dot--interrupted';
-    if (workspace.shellState === 'idle') return 'workspace-row__state-dot--idle';
-    return '';
-  }, [isClaudeActive, claudeIsIdle, workspace.shellState]);
+  const rowStatus = deriveWorkspaceRowStatus({
+    now: Date.now(),
+    activityTtlMs: ACTIVITY_TTL,
+    completionTtlMs: COMPLETION_TTL,
+    currentToolLabel,
+    claudeIsIdle,
+    hasRecentTerminalActivity,
+    shellState: workspace.shellState,
+    notificationText: workspace.notificationText,
+    recentCompletion,
+  });
 
   return (
     <div
@@ -224,7 +196,7 @@ export default function WorkspaceRow({
 
       {/* Line 1: Title */}
       <div className="workspace-row__header">
-        <span className={`workspace-row__state-dot ${stateDotClass}`} />
+        <span className={`workspace-row__state-dot ${isClaudeActive ? 'workspace-row__state-dot--running' : rowStatus.stateDotClass}`} />
         {isRenaming ? (
           <input
             className="workspace-row__rename-input"
@@ -282,8 +254,8 @@ export default function WorkspaceRow({
       </div>
 
       {/* Line 2: Status — always visible */}
-      <div className={`workspace-row__status ${statusClass}`}>
-        {statusText}
+      <div className={`workspace-row__status ${rowStatus.statusClass}`}>
+        {rowStatus.text}
       </div>
 
       {/* PR info */}

@@ -10,6 +10,7 @@ interface TerminalPaneProps {
   cwd?: string;
   /** Per-surface color scheme override (issue #4). */
   colorScheme?: string;
+  initialCommand?: string;
   focused?: boolean;
   visible?: boolean;
   showFindBar?: boolean;
@@ -22,13 +23,14 @@ export default function TerminalPane({
   shell,
   cwd,
   colorScheme,
+  initialCommand,
   focused = true,
   visible = true,
   showFindBar = false,
   onFindBarClose,
   copyModeActive = false,
 }: TerminalPaneProps) {
-  const { terminalRef, searchAddonRef } = useTerminal({ surfaceId, shell, cwd, visible, focused, colorScheme });
+  const { terminalRef, searchAddonRef } = useTerminal({ surfaceId, shell, cwd, visible, focused, colorScheme, initialCommand });
 
   const [_lastQuery, setLastQuery] = useState('');
 

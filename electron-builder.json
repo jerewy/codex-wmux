@@ -1,9 +1,10 @@
 {
-  "appId": "com.wmux.app",
+  "appId": "local.wmux.app",
   "productName": "wmux",
   "directories": {
     "output": "release"
   },
+  "afterPack": "scripts/after-pack.cjs",
   "files": [
     "dist/**/*",
     "node_modules/**/*",
@@ -18,6 +19,7 @@
   ],
   "win": {
     "icon": "resources/icons/icon.ico",
+    "signAndEditExecutable": false,
     "target": [
       { "target": "dir", "arch": ["x64"] }
     ]
@@ -36,7 +38,6 @@
     { "from": "resources/icon.png", "to": "icon.png" },
     { "from": "resources/themes", "to": "themes" },
     { "from": "resources/sounds", "to": "sounds" },
-    { "from": "resources/claude-instructions.md", "to": "claude-instructions/claude-instructions.md" },
     { "from": "src/shell-integration", "to": "shell-integration" },
     { "from": "dist/cli/wmux.js", "to": "cli/wmux.js" }
   ]

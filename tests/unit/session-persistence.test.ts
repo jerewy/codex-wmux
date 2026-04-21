@@ -78,4 +78,73 @@ describe('session-persistence', () => {
     expect(loaded.windows[0].workspaces[1].splitTree.type).toBe('branch');
     expect(loaded.windows[0].workspaces[1].splitTree.children).toHaveLength(2);
   });
+
+  it('preserves per-terminal cwd across multiple saved workspaces', () => {
+    const sessionFile = path.join(TEST_DIR, 'multi-terminal-cwd.json');
+    const data: SessionData = {
+      version: 1,
+      windows: [{
+        bounds: { x: 0, y: 0, width: 1600, height: 900 },
+        sidebarWidth: 260,
+        activeWorkspaceId: 'ws-session-2',
+        workspaces: [
+          {
+            id: 'ws-session-1',
+            title: 'Session 1',
+            pinned: false,
+            shell: 'pwsh.exe',
+            cwd: 'C:\\dev',
+            splitTree: {
+              type: 'leaf',
+              paneId: 'pane-1',
+              surfaces: [
+                { id: 'surf-1', type: 'terminal', cwd: 'C:\\dev\\project-a' },
+                { id: 'surf-2', type: 'terminal', cwd: 'C:\\dev\\project-b' },
+              ],
+              activeSurfaceIndex: 0,
+            },
+          },
+          {
+            id: 'ws-session-2',
+            title: 'Session 2',
+            pinned: false,
+            shell: 'pwsh.exe',
+            cwd: 'C:\\work',
+            splitTree: {
+              type: 'branch',
+              direction: 'horizontal',
+              ratio: 0.5,
+              children: [
+                {
+                  type: 'leaf',
+                  paneId: 'pane-2',
+                  surfaces: [{ id: 'surf-3', type: 'terminal', cwd: 'C:\\work\\api' }],
+                  activeSurfaceIndex: 0,
+                },
+                {
+                  type: 'leaf',
+                  paneId: 'pane-3',
+                  surfaces: [{ id: 'surf-4', type: 'terminal', cwd: 'C:\\work\\ui' }],
+                  activeSurfaceIndex: 0,
+                },
+              ],
+            },
+          },
+        ],
+      }],
+    };
+
+    fs.writeFileSync(sessionFile, JSON.stringify(data, null, 2));
+    const loaded = JSON.parse(fs.readFileSync(sessionFile, 'utf-8')) as SessionData;
+    const session1Surfaces = loaded.windows[0].workspaces[0].splitTree.surfaces;
+    const session2Tree = loaded.windows[0].workspaces[1].splitTree;
+
+    expect(loaded.windows[0].workspaces).toHaveLength(2);
+    expect(session1Surfaces.map((surface: any) => surface.cwd)).toEqual([
+      'C:\\dev\\project-a',
+      'C:\\dev\\project-b',
+    ]);
+    expect(session2Tree.children[0].surfaces[0].cwd).toBe('C:\\work\\api');
+    expect(session2Tree.children[1].surfaces[0].cwd).toBe('C:\\work\\ui');
+  });
 });

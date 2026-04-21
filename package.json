@@ -1,7 +1,7 @@
 {
   "name": "wmux",
   "version": "0.7.5",
-  "description": "Windows terminal multiplexer for AI agents",
+  "description": "Safe Windows terminal workspace for Codex",
   "license": "MIT",
   "main": "dist/main/index.js",
   "bin": {
@@ -10,8 +10,10 @@
   "scripts": {
     "dev": "concurrently \"vite --port 5199\" \"wait-on http://localhost:5199 && electron .\"",
     "build": "tsc -p tsconfig.node.json && vite build && electron-builder",
+    "build:latest": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-latest-wmux.ps1",
     "build:main": "tsc -p tsconfig.node.json",
     "build:renderer": "vite build",
+    "launch:latest": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/launch-latest-wmux.ps1",
     "postinstall": "electron-builder install-app-deps",
     "test": "vitest run",
     "test:watch": "vitest",

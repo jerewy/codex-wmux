@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 
-const APPDATA_DIR = path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), 'wmux');
+const APPDATA_DIR = path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), 'CodexTerminal');
 const SESSIONS_DIR = path.join(APPDATA_DIR, 'sessions');
 const SESSION_FILE = path.join(SESSIONS_DIR, 'session.json');
 const VERSION_FILE = path.join(APPDATA_DIR, 'app-version.txt');
@@ -21,7 +21,9 @@ export interface SessionData {
       customColor?: string;
       pinned: boolean;
       shell: string;
+      cwd?: string;
       splitTree: any; // SplitNode serialized
+      browserUrl?: string;
     }>;
   }>;
 }
