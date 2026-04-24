@@ -136,6 +136,7 @@ export default function App() {
   const [browserOpen, setBrowserOpen] = useState(false);
   const [browserWidth, setBrowserWidth] = useState(420);
   const [isResizingBrowser, setIsResizingBrowser] = useState(false);
+  const [switchCodexAccountBusy, setSwitchCodexAccountBusy] = useState(false);
   const [tutorialOpen, setTutorialOpen] = useState(false);
   const [notifPanelOpen, setNotifPanelOpen] = useState(false);
   // Per-workspace hook activity: workspaceId → { lastTool, toolCount, lastSeen }
@@ -673,6 +674,50 @@ export default function App() {
   // Derive a title for the titlebar: active workspace title or blank
   const titlebarText = activeWorkspace?.title ?? '';
 
+  const handleSwitchCodexAccount = useCallback(async () => {
+    if (switchCodexAccountBusy) return;
+
+    const codexWorkspaces = useStore.getState().workspaces.filter(isCodexWorkspace);
+    if (codexWorkspaces.length > 0) {
+      window.alert(
+        `Exit Codex and close all Codex panes/workspaces before switching accounts.\n\n` +
+        `This protects your running sessions because Codex auth is shared globally for this Windows user.\n\n` +
+        `Active Codex workspace${codexWorkspaces.length === 1 ? '' : 's'}: ${codexWorkspaces.map((ws) => ws.title).join(', ')}`,
+      );
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Switch Codex account for this Windows user?\n\n` +
+      `wmux will run "codex logout" and then open a new terminal with "codex login". ` +
+      `This changes the shared Codex login for all terminals and future sessions.`,
+    );
+    if (!confirmed) return;
+
+    setSwitchCodexAccountBusy(true);
+    try {
+      await window.wmux?.system?.codexLogout?.();
+      const cwd = await getStartupCodexFolder();
+      const workspaceId = createWorkspace({
+        title: 'Codex Login',
+        cwd,
+        shell: '',
+        splitTree: buildCodexSplitTree('codex login'),
+      });
+      selectWorkspace(workspaceId);
+      window.wmux?.notification?.fire({
+        surfaceId: '',
+        title: 'Codex account',
+        text: 'Logged out. Complete codex login in the new workspace.',
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      window.alert(`Failed to start Codex account switch:\n\n${message}`);
+    } finally {
+      setSwitchCodexAccountBusy(false);
+    }
+  }, [createWorkspace, selectWorkspace, switchCodexAccountBusy]);
+
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
       {tutorialOpen && <Tutorial onClose={handleTutorialClose} />}
@@ -681,6 +726,8 @@ export default function App() {
         title={titlebarText}
         onHelpClick={() => setTutorialOpen(true)}
         onDevToolsClick={() => window.wmux?.system?.toggleDevTools?.()}
+        onSwitchCodexAccount={handleSwitchCodexAccount}
+        switchCodexAccountBusy={switchCodexAccountBusy}
         onSettingsClick={() => setSettingsOpen(true)}
         notifications={notifications}
         workspaceNames={workspaceNames}

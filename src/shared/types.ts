@@ -231,6 +231,7 @@ export const IPC_CHANNELS = {
   CONFIG_USER_CONFIG_UPDATED: 'config:userConfigUpdated',
   // System
   SYSTEM_GET_SHELLS: 'system:getShells',
+  CODEX_LOGOUT: 'codex:logout',
   SYSTEM_OPEN_EXTERNAL: 'system:openExternal',
   CHAT_SAVE_TRANSCRIPT: 'chat:saveTranscript',
   // Metadata events (main → renderer)

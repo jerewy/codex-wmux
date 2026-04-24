@@ -8,6 +8,8 @@ interface TitlebarProps {
   title?: string;
   onHelpClick?: () => void;
   onDevToolsClick?: () => void;
+  onSwitchCodexAccount?: () => void;
+  switchCodexAccountBusy?: boolean;
   onSettingsClick?: () => void;
   notifications: NotificationInfo[];
   workspaceNames: Map<string, string>;
@@ -21,6 +23,8 @@ export default function Titlebar({
   title,
   onHelpClick,
   onDevToolsClick,
+  onSwitchCodexAccount,
+  switchCodexAccountBusy = false,
   onSettingsClick,
   notifications,
   workspaceNames,
@@ -49,6 +53,14 @@ export default function Titlebar({
           onJump={onNotificationJump}
           onMarkAllRead={onMarkAllNotificationsRead}
         />
+        <button
+          className="titlebar__btn titlebar__btn--codex-account"
+          onClick={onSwitchCodexAccount}
+          disabled={switchCodexAccountBusy}
+          title="Switch Codex account"
+        >
+          {switchCodexAccountBusy ? '...' : 'Acct'}
+        </button>
         <button
           className="titlebar__btn"
           onClick={onSettingsClick}

@@ -69,3 +69,14 @@
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(255, 255, 255, 0.15);
 }
+
+.titlebar__btn:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.titlebar__btn--codex-account {
+  width: 40px;
+  font-size: 10px;
+  letter-spacing: 0.02em;
+}

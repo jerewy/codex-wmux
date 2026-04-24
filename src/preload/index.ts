@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld('wmux', {
   system: {
     platform: 'win32' as const,
     getShells: () => ipcRenderer.invoke(IPC_CHANNELS.SYSTEM_GET_SHELLS),
+    codexLogout: () => ipcRenderer.invoke(IPC_CHANNELS.CODEX_LOGOUT) as Promise<{ ok: true }>,
     getDefaultProjectFolder: () => ipcRenderer.invoke('system:getDefaultProjectFolder') as Promise<string>,
     pickProjectFolder: () => ipcRenderer.invoke('system:pickProjectFolder') as Promise<string | null>,
     openExternal: (url: string) => ipcRenderer.send(IPC_CHANNELS.SYSTEM_OPEN_EXTERNAL, url),

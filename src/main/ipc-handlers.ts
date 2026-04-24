@@ -2,6 +2,7 @@ import { ipcMain, BrowserWindow, clipboard, dialog, shell } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { execFile } from 'child_process';
 import { IPC_CHANNELS, SurfaceId, WindowId, WorkspaceId, AgentId } from '../shared/types';
 import { observePtyData } from './claude-observer';
 import { PtyManager } from './pty-manager';
@@ -22,6 +23,28 @@ const ptyManager = new PtyManager();
 const notificationManager = new NotificationManager();
 const cdpBridge = new CDPBridge();
 const agentManager = new AgentManager(ptyManager);
+
+function runCodexLogout(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    execFile(
+      'codex',
+      ['logout'],
+      {
+        windowsHide: true,
+        timeout: 30_000,
+        shell: process.platform === 'win32',
+      },
+      (error, _stdout, stderr) => {
+        if (error) {
+          const detail = stderr?.trim() || error.message;
+          reject(new Error(detail || 'codex logout failed'));
+          return;
+        }
+        resolve();
+      },
+    );
+  });
+}
 
 export function registerIpcHandlers(windowManager: WindowManager, cdpProxyInstance?: CDPProxy): void {
   // Toggle DevTools for the renderer window
@@ -86,6 +109,11 @@ export function registerIpcHandlers(windowManager: WindowManager, cdpProxyInstan
 
   ipcMain.handle(IPC_CHANNELS.SYSTEM_GET_SHELLS, async () => {
     return detectShells();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.CODEX_LOGOUT, async () => {
+    await runCodexLogout();
+    return { ok: true };
   });
 
   ipcMain.handle('system:pickProjectFolder', async () => {
