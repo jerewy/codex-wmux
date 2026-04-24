@@ -675,6 +675,11 @@ export default function App() {
     return map;
   }, [workspaces]);
 
+  const activeBrowserWorkspace = React.useMemo(
+    () => workspaces.find((ws) => ws.id === activeWorkspaceId) ?? null,
+    [workspaces, activeWorkspaceId],
+  );
+
   const handleNotificationJump = useCallback(
     (workspaceId: WorkspaceId, surfaceId: SurfaceId, _paneId?: PaneId) => {
       selectWorkspace(workspaceId);
@@ -937,23 +942,21 @@ export default function App() {
                 onMouseLeave={(e) => { (e.target as HTMLElement).style.color = '#999'; (e.target as HTMLElement).style.background = 'rgba(0,0,0,0.5)'; }}
                 title="Close browser panel"
               >×</button>
-              {/* Per-workspace browser — all stay mounted, only active visible */}
-              {workspaces.map((ws) => (
+              {/* Keep only the visible Electron webview mounted so it cannot steal input from terminal panes. */}
+              {activeBrowserWorkspace && (
                 <div
-                  key={`browser-${ws.id}`}
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    display: ws.id === activeWorkspaceId ? 'block' : 'none',
-                  }}
+                  key={`browser-${activeBrowserWorkspace.id}`}
+                  style={{ position: 'absolute', inset: 0 }}
                 >
                   <BrowserPane
-                    surfaceId={`browser-${ws.id}`}
-                    initialUrl={ws.browserUrl}
-                    onUrlChange={(url) => { updateWorkspaceMetadata(ws.id, { browserUrl: url }); }}
+                    surfaceId={`browser-${activeBrowserWorkspace.id}`}
+                    initialUrl={activeBrowserWorkspace.browserUrl}
+                    onUrlChange={(url) => {
+                      updateWorkspaceMetadata(activeBrowserWorkspace.id, { browserUrl: url });
+                    }}
                   />
                 </div>
-              ))}
+              )}
             </div>
           </>
         )}

@@ -185,7 +185,7 @@ export default function PaneWrapper({ leaf, workspaceId, isFocused }: PaneWrappe
               copyModeActive={copyModeActive && isFocused && isActive}
             />
           )}
-          {surface.type === 'browser' && <BrowserPane surfaceId={surface.id} />}
+          {surface.type === 'browser' && isVisible && <BrowserPane surfaceId={surface.id} />}
           {surface.type === 'markdown' && <MarkdownPane surfaceId={surface.id} />}
           {surface.type === 'diff' && <DiffPane surfaceId={surface.id} cwd={workspace?.cwd} />}
         </div>
