@@ -211,7 +211,27 @@ export function useTerminal({ surfaceId, shell, cwd, visible = true, focused = t
     terminal.unicode.activeVersion = '11';
 
     // Open terminal in the DOM
-    terminal.open(terminalRef.current);
+    const terminalContainer = terminalRef.current;
+    terminal.open(terminalContainer);
+
+    const focusTerminal = () => {
+      terminal.focus();
+    };
+    const scrollTerminal = (event: WheelEvent) => {
+      // Electron webviews can keep focus after the browser panel is opened.
+      // Handle wheel at the terminal container so chat history remains scrollable.
+      focusTerminal();
+      const rawDelta = event.deltaMode === WheelEvent.DOM_DELTA_LINE
+        ? event.deltaY
+        : event.deltaY / 40;
+      const direction = Math.sign(rawDelta);
+      if (direction === 0) return;
+      const lines = Math.min(12, Math.max(1, Math.round(Math.abs(rawDelta))));
+      terminal.scrollLines(direction * lines);
+      event.preventDefault();
+    };
+    terminalContainer.addEventListener('mousedown', focusTerminal, { capture: true });
+    terminalContainer.addEventListener('wheel', scrollTerminal, { passive: false });
 
     // Korean/CJK IME reliability fix.
     // xterm.js 5.5's CompositionHelper._finalizeComposition defers reading the
@@ -426,6 +446,8 @@ export function useTerminal({ surfaceId, shell, cwd, visible = true, focused = t
 
     // Cleanup
     return () => {
+      terminalContainer.removeEventListener('mousedown', focusTerminal, { capture: true });
+      terminalContainer.removeEventListener('wheel', scrollTerminal);
       resizeObserver.disconnect();
       if (resizeRaf !== null) cancelAnimationFrame(resizeRaf);
       dataDisposable.dispose();
