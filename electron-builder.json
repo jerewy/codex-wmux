@@ -21,7 +21,8 @@
     "icon": "resources/icons/icon.ico",
     "signAndEditExecutable": false,
     "target": [
-      { "target": "dir", "arch": ["x64"] }
+      { "target": "dir", "arch": ["x64"] },
+      { "target": "nsis", "arch": ["x64"] }
     ]
   },
   "nsis": {

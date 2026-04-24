@@ -64,6 +64,25 @@ For live development:
 npm run dev
 ```
 
+## Install For Windows Search
+
+To make the app appear in the Windows Start menu and search bar as `wmux`, build and run the Windows installer:
+
+```powershell
+git clone https://github.com/jerewy/codex-wmux.git
+cd codex-wmux
+npm ci
+npm run build:installer
+```
+
+Then open the generated setup executable in `release\`, for example:
+
+```text
+release\wmux Setup 0.7.5.exe
+```
+
+The installer creates a Start Menu shortcut named `wmux`, so Windows Search can find and launch it.
+
 ## Reopening After Accidental Close
 
 Codex Terminal auto-saves the workspace layout while it is running and again when the app quits. On the next launch, it restores the last workspace and changes saved Codex terminals to:
