@@ -31,7 +31,8 @@ export function hasFreshCompletion(
   now: number,
   ttlMs: number,
 ): completion is WorkspaceCompletion {
-  return Boolean(completion && now - completion.finishedAt >= 0 && now - completion.finishedAt < ttlMs);
+  void ttlMs;
+  return Boolean(completion && now - completion.finishedAt >= 0);
 }
 
 export function deriveWorkspaceRowStatus(input: WorkspaceRowStatusInput): WorkspaceRowStatus {
@@ -40,6 +41,30 @@ export function deriveWorkspaceRowStatus(input: WorkspaceRowStatusInput): Worksp
       text: input.currentToolLabel,
       statusClass: 'workspace-row__status--working',
       stateDotClass: 'workspace-row__state-dot--running',
+    };
+  }
+
+  if (input.shellState === 'interrupted') {
+    return {
+      text: 'Interrupted',
+      statusClass: 'workspace-row__status--interrupted',
+      stateDotClass: 'workspace-row__state-dot--interrupted',
+    };
+  }
+
+  if (input.shellState === 'running') {
+    return {
+      text: 'Working',
+      statusClass: 'workspace-row__status--running',
+      stateDotClass: 'workspace-row__state-dot--running',
+    };
+  }
+
+  if (hasFreshCompletion(input.recentCompletion, input.now, input.completionTtlMs)) {
+    return {
+      text: formatCompletionAge(input.now - input.recentCompletion.finishedAt),
+      statusClass: 'workspace-row__status--done',
+      stateDotClass: 'workspace-row__state-dot--done',
     };
   }
 
@@ -56,30 +81,6 @@ export function deriveWorkspaceRowStatus(input: WorkspaceRowStatusInput): Worksp
       text: 'Idle',
       statusClass: 'workspace-row__status--idle',
       stateDotClass: 'workspace-row__state-dot--idle',
-    };
-  }
-
-  if (input.shellState === 'running') {
-    return {
-      text: 'Working',
-      statusClass: 'workspace-row__status--running',
-      stateDotClass: 'workspace-row__state-dot--running',
-    };
-  }
-
-  if (input.shellState === 'interrupted') {
-    return {
-      text: 'Interrupted',
-      statusClass: 'workspace-row__status--interrupted',
-      stateDotClass: 'workspace-row__state-dot--interrupted',
-    };
-  }
-
-  if (hasFreshCompletion(input.recentCompletion, input.now, input.completionTtlMs)) {
-    return {
-      text: formatCompletionAge(input.now - input.recentCompletion.finishedAt),
-      statusClass: 'workspace-row__status--done',
-      stateDotClass: 'workspace-row__state-dot--done',
     };
   }
 

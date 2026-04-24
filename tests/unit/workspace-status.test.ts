@@ -40,7 +40,7 @@ describe('workspace row status', () => {
     });
   });
 
-  it('expires the Codex completion back to normal idle', () => {
+  it('keeps a completed Codex session done until it starts running again', () => {
     const status = deriveWorkspaceRowStatus({
       ...base,
       shellState: 'idle',
@@ -48,9 +48,24 @@ describe('workspace row status', () => {
     });
 
     expect(status).toEqual({
-      text: 'Idle',
-      statusClass: 'workspace-row__status--idle',
-      stateDotClass: 'workspace-row__state-dot--idle',
+      text: 'Done',
+      statusClass: 'workspace-row__status--done',
+      stateDotClass: 'workspace-row__state-dot--done',
+    });
+  });
+
+  it('shows done instead of transient terminal activity after completion', () => {
+    const status = deriveWorkspaceRowStatus({
+      ...base,
+      shellState: 'idle',
+      hasRecentTerminalActivity: true,
+      recentCompletion: { finishedAt: base.now - 1000 },
+    });
+
+    expect(status).toEqual({
+      text: 'Done',
+      statusClass: 'workspace-row__status--done',
+      stateDotClass: 'workspace-row__state-dot--done',
     });
   });
 
