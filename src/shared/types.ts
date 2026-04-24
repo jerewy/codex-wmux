@@ -19,6 +19,7 @@ export interface SurfaceRef {
   cwd?: string;
   initialCommand?: string;
   codexSessionId?: string;
+  codexSessionModel?: string;
   /** Per-surface color scheme override (bundled theme name or user-defined scheme name). */
   colorScheme?: string;
 }

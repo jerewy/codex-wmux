@@ -10,9 +10,11 @@ interface CodexSessionMeta {
 
 interface CodexSessionCandidate extends CodexSessionMeta {
   mtimeMs: number;
+  model?: string;
 }
 
 const SESSION_ID_PATTERN = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+const MODEL_PATTERN = /^[A-Za-z0-9._:-]+$/;
 const codexSurfaceIds = new Set<string>();
 const ptyInputBuffers = new Map<string, string>();
 
@@ -22,6 +24,10 @@ function normalizePathForCompare(value: string): string {
 
 function isValidCodexSessionId(value: unknown): value is string {
   return typeof value === 'string' && SESSION_ID_PATTERN.test(value.trim());
+}
+
+function isSafeCodexModel(value: unknown): value is string {
+  return typeof value === 'string' && MODEL_PATTERN.test(value.trim());
 }
 
 export function parseCodexSessionMeta(line: string): CodexSessionMeta | null {
@@ -36,6 +42,17 @@ export function parseCodexSessionMeta(line: string): CodexSessionMeta | null {
       cwd: payload.cwd,
       timestamp: typeof payload.timestamp === 'string' ? payload.timestamp : '',
     };
+  } catch {
+    return null;
+  }
+}
+
+export function parseCodexTurnContextModel(line: string): string | null {
+  try {
+    const entry = JSON.parse(line);
+    if (entry?.type !== 'turn_context') return null;
+    const model = entry?.payload?.model;
+    return isSafeCodexModel(model) ? model.trim() : null;
   } catch {
     return null;
   }
@@ -60,7 +77,37 @@ function collectJsonlFiles(dir: string): string[] {
   return files;
 }
 
-export function findLatestCodexSessionIdForCwd(cwd: string): string | null {
+function findCodexSessionModelInFile(filePath: string): string {
+  try {
+    const lines = fs.readFileSync(filePath, 'utf-8').split(/\r?\n/);
+    for (const line of lines) {
+      const model = parseCodexTurnContextModel(line);
+      if (model) return model;
+    }
+  } catch {
+    // Codex may be writing the file while we scan; treat the model as unknown.
+  }
+  return '';
+}
+
+export function findCodexSessionModelById(sessionId: string): string {
+  if (!isValidCodexSessionId(sessionId)) return '';
+
+  const sessionsDir = process.env.CODEX_SESSIONS_DIR || path.join(os.homedir(), '.codex', 'sessions');
+  for (const filePath of collectJsonlFiles(sessionsDir)) {
+    try {
+      const firstLine = fs.readFileSync(filePath, 'utf-8').split(/\r?\n/, 1)[0];
+      const meta = parseCodexSessionMeta(firstLine);
+      if (meta?.id !== sessionId && !path.basename(filePath).includes(sessionId)) continue;
+      return findCodexSessionModelInFile(filePath);
+    } catch {
+      // Skip locked or partial session files.
+    }
+  }
+  return '';
+}
+
+export function findLatestCodexSessionForCwd(cwd: string): { id: string; model?: string } | null {
   if (!cwd.trim()) return null;
 
   const sessionsDir = process.env.CODEX_SESSIONS_DIR || path.join(os.homedir(), '.codex', 'sessions');
@@ -76,6 +123,7 @@ export function findLatestCodexSessionIdForCwd(cwd: string): string | null {
       candidates.push({
         ...meta,
         mtimeMs: fs.statSync(filePath).mtimeMs,
+        model: findCodexSessionModelInFile(filePath) || undefined,
       });
     } catch {
       // Codex may be writing the file while we scan; skip partial reads.
@@ -88,7 +136,12 @@ export function findLatestCodexSessionIdForCwd(cwd: string): string | null {
     return Date.parse(b.timestamp || '0') - Date.parse(a.timestamp || '0');
   });
 
-  return candidates[0]?.id ?? null;
+  const latest = candidates[0];
+  return latest ? { id: latest.id, model: latest.model } : null;
+}
+
+export function findLatestCodexSessionIdForCwd(cwd: string): string | null {
+  return findLatestCodexSessionForCwd(cwd)?.id ?? null;
 }
 
 function getCodexStateRoot(): string {
@@ -114,6 +167,17 @@ function readSurfaceState(surfaceId: unknown, stateType: SurfaceStateType): stri
     return fs.readFileSync(filePath, 'utf-8').trim();
   } catch {
     return '';
+  }
+}
+
+function writeSurfaceState(surfaceId: unknown, stateType: SurfaceStateType, value: string): void {
+  try {
+    const filePath = getSurfaceStatePath(surfaceId, stateType);
+    if (!filePath) return;
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    fs.writeFileSync(filePath, value, 'utf-8');
+  } catch {
+    // Shell metadata is best-effort and should never interrupt terminal startup.
   }
 }
 
@@ -149,7 +213,9 @@ function isCodexSurface(surface: any): boolean {
 }
 
 export function markSurfaceAsCodex(surfaceId: string): void {
-  if (surfaceId) codexSurfaceIds.add(surfaceId);
+  if (!surfaceId) return;
+  codexSurfaceIds.add(surfaceId);
+  writeSurfaceState(surfaceId, 'terminal-active-codex', '1');
 }
 
 export function observePtyInputForCodex(surfaceId: string, data: string): void {
@@ -178,8 +244,9 @@ export function observePtyInputForCodex(surfaceId: string, data: string): void {
   ptyInputBuffers.set(surfaceId, buffer.slice(-500));
 }
 
-function buildCodexResumeCommand(codexSessionId: string): string {
-  return `codex resume ${codexSessionId} --no-alt-screen`;
+function buildCodexResumeCommand(codexSessionId: string, codexSessionModel?: string): string {
+  const modelArg = isSafeCodexModel(codexSessionModel) ? ` --model ${codexSessionModel.trim()}` : '';
+  return `codex resume ${codexSessionId}${modelArg} --no-alt-screen`;
 }
 
 function enrichSplitTreeWithCodexState(node: any, workspaceCwd: string): any {
@@ -200,13 +267,22 @@ function enrichSplitTreeWithCodexState(node: any, workspaceCwd: string): any {
       const savedSessionId = getSavedSurfaceSessionId(surface?.id);
       const isCodexActive = isSurfaceCodexActive(surface?.id);
       const isCodex = isCodexActive && (isCodexSurface(surface) || !!savedSessionId);
+      const latestSession = !isValidCodexSessionId(surface?.codexSessionId) && !savedSessionId && isCodex
+        ? findLatestCodexSessionForCwd(cwd)
+        : null;
       const codexSessionId = isValidCodexSessionId(surface?.codexSessionId)
         ? surface.codexSessionId
-        : savedSessionId || (isCodex ? findLatestCodexSessionIdForCwd(cwd) : '');
+        : savedSessionId || latestSession?.id || '';
+      const codexSessionModel = isSafeCodexModel(surface?.codexSessionModel)
+        ? surface.codexSessionModel
+        : codexSessionId
+          ? findCodexSessionModelById(codexSessionId) || latestSession?.model || ''
+          : '';
 
       const {
         initialCommand: _initialCommand,
         codexSessionId: _codexSessionId,
+        codexSessionModel: _codexSessionModel,
         customTitle: _customTitle,
         ...surfaceWithoutCodexRestore
       } = surface;
@@ -221,8 +297,9 @@ function enrichSplitTreeWithCodexState(node: any, workspaceCwd: string): any {
         ...nextSurface,
         customTitle: nextSurface.customTitle || 'Codex',
         ...(codexSessionId ? {
-          initialCommand: buildCodexResumeCommand(codexSessionId),
+          initialCommand: buildCodexResumeCommand(codexSessionId, codexSessionModel),
           codexSessionId,
+          ...(codexSessionModel ? { codexSessionModel } : {}),
         } : {}),
       };
     }),

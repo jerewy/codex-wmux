@@ -42,6 +42,28 @@ describe('Codex auto restore', () => {
     );
   });
 
+  it('preserves the recorded model when rebuilding a saved Codex resume command', () => {
+    const splitTree: SplitNode = {
+      type: 'leaf',
+      paneId: 'pane-1',
+      surfaces: [{
+        id: 'surf-1',
+        type: 'terminal',
+        customTitle: 'Codex',
+        initialCommand: 'codex --no-alt-screen',
+        codexSessionId: '019daba5-0013-7842-a8e7-e8cb11630734',
+        codexSessionModel: 'gpt-5.4',
+      }],
+      activeSurfaceIndex: 0,
+    } as SplitNode;
+
+    const restored = prepareWorkspaceForCodexAutoRestore({ title: 'Project', splitTree });
+
+    expect((restored.splitTree as any).surfaces[0].initialCommand).toBe(
+      'codex resume 019daba5-0013-7842-a8e7-e8cb11630734 --model gpt-5.4 --no-alt-screen',
+    );
+  });
+
   it('restores manually detected Codex terminals that only have a session id', () => {
     const splitTree: SplitNode = {
       type: 'leaf',

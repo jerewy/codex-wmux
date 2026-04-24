@@ -1,8 +1,9 @@
 import { SplitNode, WorkspaceInfo } from '../../shared/types';
 
-function buildCodexResumeCommand(sessionId?: string): string {
+function buildCodexResumeCommand(sessionId?: string, model?: string): string {
+  const modelArg = model ? ` --model ${model}` : '';
   return sessionId
-    ? `codex resume ${sessionId} --no-alt-screen`
+    ? `codex resume ${sessionId}${modelArg} --no-alt-screen`
     : 'codex resume --last --no-alt-screen';
 }
 
@@ -23,7 +24,7 @@ function restoreCodexSurfaces(node: SplitNode): SplitNode {
       return {
         ...surface,
         customTitle: surface.customTitle || 'Codex',
-        initialCommand: buildCodexResumeCommand(surface.codexSessionId),
+        initialCommand: buildCodexResumeCommand(surface.codexSessionId, surface.codexSessionModel),
       };
     }),
   };

@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import { execFileSync } from 'child_process';
 import { v4 as uuidv4 } from 'uuid';
 import { SurfaceId } from '../shared/types';
+import { isCodexCommandLine, markSurfaceAsCodex } from './codex-session-resolver';
 
 // ─── Shell resolution ──────────────────────────────────────────────────────
 // Validates that a shell executable exists before spawning.
@@ -189,6 +190,9 @@ export class PtyManager {
     if (options.initialCommand) {
       setTimeout(() => {
         if (this.ptys.has(id)) {
+          if (isCodexCommandLine(options.initialCommand!)) {
+            markSurfaceAsCodex(id);
+          }
           ptyProcess.write(`${options.initialCommand}\r`);
         }
       }, 500);
