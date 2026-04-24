@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { v4 as uuid } from 'uuid';
 import { useStore } from './store';
-import { PaneId, SurfaceId, WorkspaceId, WorkspaceInfo, SplitNode } from '../shared/types';
+import { PaneId, SurfaceId, WorkspaceId, WorkspaceInfo, SplitNode, SurfaceRef } from '../shared/types';
 import SplitContainer from './components/SplitPane/SplitContainer';
 import { updateRatio, getAllPaneIds, findLeaf } from './store/split-utils';
 import Sidebar from './components/Sidebar/Sidebar';
@@ -106,6 +106,49 @@ function splitTreeHasCodexSurface(tree: SplitNode): boolean {
 
 function isCodexWorkspace(workspace: WorkspaceInfo): boolean {
   return splitTreeHasCodexSurface(workspace.splitTree);
+}
+
+function isCodexSurface(surface: SurfaceRef): boolean {
+  const startsCodex = typeof surface.initialCommand === 'string' && /^codex(\s|$)/i.test(surface.initialCommand.trim());
+  return surface.customTitle === 'Codex' || startsCodex || Boolean(surface.codexSessionId);
+}
+
+function collectCodexSurfaceIds(tree: SplitNode): SurfaceId[] {
+  if (tree.type === 'branch') {
+    return [...collectCodexSurfaceIds(tree.children[0]), ...collectCodexSurfaceIds(tree.children[1])];
+  }
+  return tree.surfaces.filter(isCodexSurface).map((surface) => surface.id);
+}
+
+function refreshCodexSurfacesForAccountSwitch(tree: SplitNode): SplitNode {
+  if (tree.type === 'branch') {
+    return {
+      ...tree,
+      children: [
+        refreshCodexSurfacesForAccountSwitch(tree.children[0]),
+        refreshCodexSurfacesForAccountSwitch(tree.children[1]),
+      ],
+    };
+  }
+
+  return {
+    ...tree,
+    surfaces: tree.surfaces.map((surface) => {
+      if (!isCodexSurface(surface)) return surface;
+      const {
+        codexSessionId: _codexSessionId,
+        codexSessionModel: _codexSessionModel,
+        ...surfaceWithoutOldSession
+      } = surface;
+      return {
+        ...surfaceWithoutOldSession,
+        id: `surf-${uuid()}` as SurfaceId,
+        customTitle: surfaceWithoutOldSession.customTitle || 'Codex',
+        initialCommand: 'codex --no-alt-screen',
+        codexAccountRefreshed: true,
+      };
+    }),
+  };
 }
 
 export default function App() {
@@ -682,17 +725,12 @@ export default function App() {
     if (switchCodexAccountBusy) return;
 
     const codexWorkspaces = useStore.getState().workspaces.filter(isCodexWorkspace);
-    if (codexWorkspaces.length > 0) {
-      window.alert(
-        `Exit Codex and close all Codex panes/workspaces before switching accounts.\n\n` +
-        `This protects your running sessions because Codex auth is shared globally for this Windows user.\n\n` +
-        `Active Codex workspace${codexWorkspaces.length === 1 ? '' : 's'}: ${codexWorkspaces.map((ws) => ws.title).join(', ')}`,
-      );
-      return;
-    }
-
     const confirmed = window.confirm(
       `Switch Codex account for this Windows user?\n\n` +
+      (codexWorkspaces.length > 0
+        ? `wmux will stop and refresh active Codex panes, but keep your workspace layout and local Codex history files.\n\n` +
+          `Active Codex workspace${codexWorkspaces.length === 1 ? '' : 's'}: ${codexWorkspaces.map((ws) => ws.title).join(', ')}\n\n`
+        : '') +
       `wmux will run "codex logout" and then open a new terminal with "codex login". ` +
       `This changes the shared Codex login for all terminals and future sessions.`,
     );
@@ -700,7 +738,18 @@ export default function App() {
 
     setSwitchCodexAccountBusy(true);
     try {
+      const state = useStore.getState();
+      const codexSurfaceIds = codexWorkspaces.flatMap((workspace) => collectCodexSurfaceIds(workspace.splitTree));
       await window.wmux?.system?.codexLogout?.();
+      for (const surfaceId of codexSurfaceIds) {
+        window.wmux?.pty?.kill(surfaceId);
+      }
+      for (const workspace of codexWorkspaces) {
+        const latestWorkspace = useStore.getState().workspaces.find((item) => item.id === workspace.id);
+        if (latestWorkspace) {
+          state.updateSplitTree(latestWorkspace.id, refreshCodexSurfacesForAccountSwitch(latestWorkspace.splitTree));
+        }
+      }
       const cwd = await getStartupCodexFolder();
       const workspaceId = createWorkspace({
         title: 'Codex Login',
