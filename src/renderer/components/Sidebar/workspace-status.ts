@@ -52,14 +52,6 @@ export function deriveWorkspaceRowStatus(input: WorkspaceRowStatusInput): Worksp
     };
   }
 
-  if (input.shellState === 'running') {
-    return {
-      text: 'Working',
-      statusClass: 'workspace-row__status--running',
-      stateDotClass: 'workspace-row__state-dot--running',
-    };
-  }
-
   if (hasFreshCompletion(input.recentCompletion, input.now, input.completionTtlMs)) {
     return {
       text: formatCompletionAge(input.now - input.recentCompletion.finishedAt),
@@ -68,19 +60,27 @@ export function deriveWorkspaceRowStatus(input: WorkspaceRowStatusInput): Worksp
     };
   }
 
+  if (input.claudeIsIdle) {
+    return {
+      text: 'Done',
+      statusClass: 'workspace-row__status--done',
+      stateDotClass: 'workspace-row__state-dot--done',
+    };
+  }
+
+  if (input.shellState === 'running') {
+    return {
+      text: 'Working',
+      statusClass: 'workspace-row__status--running',
+      stateDotClass: 'workspace-row__state-dot--running',
+    };
+  }
+
   if (input.hasRecentTerminalActivity) {
     return {
       text: 'Working',
       statusClass: 'workspace-row__status--working',
       stateDotClass: 'workspace-row__state-dot--running',
-    };
-  }
-
-  if (input.claudeIsIdle) {
-    return {
-      text: 'Idle',
-      statusClass: 'workspace-row__status--idle',
-      stateDotClass: 'workspace-row__state-dot--idle',
     };
   }
 

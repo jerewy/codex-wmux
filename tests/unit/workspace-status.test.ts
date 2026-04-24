@@ -69,6 +69,34 @@ describe('workspace row status', () => {
     });
   });
 
+  it('shows done when a completed Codex session still has a stale running shell state', () => {
+    const status = deriveWorkspaceRowStatus({
+      ...base,
+      shellState: 'running',
+      recentCompletion: { finishedAt: base.now - 1000 },
+    });
+
+    expect(status).toEqual({
+      text: 'Done',
+      statusClass: 'workspace-row__status--done',
+      stateDotClass: 'workspace-row__state-dot--done',
+    });
+  });
+
+  it('shows done when Claude activity expired while shell state is still running', () => {
+    const status = deriveWorkspaceRowStatus({
+      ...base,
+      shellState: 'running',
+      claudeIsIdle: true,
+    });
+
+    expect(status).toEqual({
+      text: 'Done',
+      statusClass: 'workspace-row__status--done',
+      stateDotClass: 'workspace-row__state-dot--done',
+    });
+  });
+
   it('keeps non-completed idle sessions neutral', () => {
     const status = deriveWorkspaceRowStatus({
       ...base,
