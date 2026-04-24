@@ -9,6 +9,7 @@ import {
   markSurfaceAsCodex,
   parseCodexSessionMeta,
   parseCodexTurnContextModel,
+  refreshCodexRestoreStateForAccountSwitch,
 } from '../../src/main/codex-session-resolver';
 
 function writeFile(filePath: string, content: string): void {
@@ -304,6 +305,44 @@ describe('Codex session resolver', () => {
     writeFile(path.join(stateRoot, 'terminal-active-codex', `${surfaceId}.txt`), '1');
 
     clearSurfaceCodexActive(surfaceId);
+
+    const [workspace] = enrichWorkspacesWithCodexSessionIds([{
+      title: 'Nicheflow Studio',
+      cwd: '',
+      splitTree: {
+        type: 'leaf',
+        paneId: 'pane-1',
+        surfaces: [{ id: surfaceId, type: 'terminal', shell: 'powershell.exe' }],
+        activeSurfaceIndex: 0,
+      },
+    }]);
+
+    const surface = workspace.splitTree.surfaces[0];
+    expect(surface.cwd).toBe('C:\\dev');
+    expect(surface.codexSessionId).toBeUndefined();
+    expect(surface.initialCommand).toBeUndefined();
+  });
+
+  it('refreshes Codex restore state for account switches without deleting state files', () => {
+    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-terminal-state-'));
+    const stateRoot = path.join(tempRoot, 'state');
+    const surfaceId = 'surf-nicheflow';
+    const sessionId = '019daba5-0013-7842-a8e7-e8cb11630734';
+
+    process.env.CODEX_TERMINAL_STATE_ROOT = stateRoot;
+
+    const sessionStatePath = path.join(stateRoot, 'terminal-sessions', `${surfaceId}.txt`);
+    const activeStatePath = path.join(stateRoot, 'terminal-active-codex', `${surfaceId}.txt`);
+    writeFile(path.join(stateRoot, 'terminal-directories', `${surfaceId}.txt`), 'C:\\dev');
+    writeFile(sessionStatePath, sessionId);
+    writeFile(activeStatePath, '1');
+
+    refreshCodexRestoreStateForAccountSwitch();
+
+    expect(fs.existsSync(sessionStatePath)).toBe(true);
+    expect(fs.existsSync(activeStatePath)).toBe(true);
+    expect(fs.readFileSync(sessionStatePath, 'utf-8')).toBe('');
+    expect(fs.readFileSync(activeStatePath, 'utf-8')).toBe('');
 
     const [workspace] = enrichWorkspacesWithCodexSessionIds([{
       title: 'Nicheflow Studio',

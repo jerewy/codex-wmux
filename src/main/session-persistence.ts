@@ -28,6 +28,67 @@ export interface SessionData {
   }>;
 }
 
+function isCodexSurface(surface: any): boolean {
+  const startsCodex = typeof surface?.initialCommand === 'string' && /^codex(\s|$)/i.test(surface.initialCommand.trim());
+  return surface?.customTitle === 'Codex' || startsCodex || Boolean(surface?.codexSessionId);
+}
+
+function refreshCodexSurfaces(node: any): any {
+  if (!node) return node;
+  if (node.type === 'branch') {
+    return {
+      ...node,
+      children: Array.isArray(node.children)
+        ? node.children.map(refreshCodexSurfaces)
+        : node.children,
+    };
+  }
+  if (node.type !== 'leaf' || !Array.isArray(node.surfaces)) return node;
+
+  return {
+    ...node,
+    surfaces: node.surfaces.map((surface: any) => {
+      if (!isCodexSurface(surface)) return surface;
+      const {
+        codexSessionId: _codexSessionId,
+        codexSessionModel: _codexSessionModel,
+        ...surfaceWithoutOldSession
+      } = surface;
+      return {
+        ...surfaceWithoutOldSession,
+        customTitle: surfaceWithoutOldSession.customTitle || 'Codex',
+        initialCommand: 'codex --no-alt-screen',
+        codexAccountRefreshed: true,
+      };
+    }),
+  };
+}
+
+export function refreshCodexWorkspacesForAccountSwitch<T extends { splitTree?: any }>(workspaces: T[] | undefined): T[] | undefined {
+  if (!Array.isArray(workspaces)) return workspaces;
+  return workspaces.map((workspace) => ({
+    ...workspace,
+    splitTree: refreshCodexSurfaces(workspace.splitTree),
+  }));
+}
+
+function refreshSessionDataCodexAccount(data: SessionData): SessionData {
+  return {
+    ...data,
+    windows: data.windows.map((window) => ({
+      ...window,
+      workspaces: refreshCodexWorkspacesForAccountSwitch(window.workspaces) ?? window.workspaces,
+    })),
+  };
+}
+
+function refreshNamedSessionCodexAccount(session: import('../shared/types').SavedSession): import('../shared/types').SavedSession {
+  return {
+    ...session,
+    workspaces: refreshCodexWorkspacesForAccountSwitch(session.workspaces) ?? session.workspaces,
+  };
+}
+
 export function ensureDirectories(): void {
   if (!fs.existsSync(SESSIONS_DIR)) {
     fs.mkdirSync(SESSIONS_DIR, { recursive: true });
@@ -67,6 +128,30 @@ export function loadSession(): SessionData | null {
 
 export function getSessionPath(): string {
   return SESSION_FILE;
+}
+
+export function refreshSavedCodexAccountState(): void {
+  ensureDirectories();
+  try {
+    const session = loadSession();
+    if (session) {
+      saveSession(refreshSessionDataCodexAccount(session));
+    }
+  } catch {
+    // Account refresh must not block logout/login if session metadata is partial.
+  }
+
+  if (!fs.existsSync(SAVED_DIR)) return;
+  for (const fileName of fs.readdirSync(SAVED_DIR)) {
+    if (!fileName.endsWith('.json')) continue;
+    const filePath = path.join(SAVED_DIR, fileName);
+    try {
+      const session = JSON.parse(fs.readFileSync(filePath, 'utf-8')) as import('../shared/types').SavedSession;
+      fs.writeFileSync(filePath, JSON.stringify(refreshNamedSessionCodexAccount(session), null, 2), 'utf-8');
+    } catch {
+      // Leave unreadable user snapshots untouched.
+    }
+  }
 }
 
 /** Returns true if the app version changed (or first launch). Preserves saved sessions across upgrades. */

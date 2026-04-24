@@ -64,6 +64,31 @@ describe('Codex auto restore', () => {
     );
   });
 
+  it('starts fresh after a Codex account refresh instead of resuming an old session', () => {
+    const splitTree: SplitNode = {
+      type: 'leaf',
+      paneId: 'pane-1',
+      surfaces: [{
+        id: 'surf-1',
+        type: 'terminal',
+        customTitle: 'Codex',
+        initialCommand: 'codex resume 019daba5-0013-7842-a8e7-e8cb11630734 --no-alt-screen',
+        codexSessionId: '019daba5-0013-7842-a8e7-e8cb11630734',
+        codexSessionModel: 'gpt-5.4',
+        codexAccountRefreshed: true,
+      }],
+      activeSurfaceIndex: 0,
+    } as SplitNode;
+
+    const restored = prepareWorkspaceForCodexAutoRestore({ title: 'Project', splitTree });
+    const surface = (restored.splitTree as any).surfaces[0];
+
+    expect(surface.initialCommand).toBe('codex --no-alt-screen');
+    expect(surface.codexSessionId).toBeUndefined();
+    expect(surface.codexSessionModel).toBeUndefined();
+    expect(surface.codexAccountRefreshed).toBeUndefined();
+  });
+
   it('restores manually detected Codex terminals that only have a session id', () => {
     const splitTree: SplitNode = {
       type: 'leaf',

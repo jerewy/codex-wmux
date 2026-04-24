@@ -15,9 +15,9 @@ import { WindowManager } from './window-manager';
 import { CDPBridge } from './cdp-bridge';
 import { CDPProxy } from './cdp-proxy';
 import { AgentManager } from './agent-manager';
-import { loadSession, saveNamedSession, loadNamedSession, listNamedSessions, deleteNamedSession } from './session-persistence';
+import { loadSession, saveNamedSession, loadNamedSession, listNamedSessions, deleteNamedSession, refreshSavedCodexAccountState } from './session-persistence';
 import { getChangedFiles, getFileDiff } from './diff-provider';
-import { enrichWorkspacesWithCodexSessionIds, observePtyInputForCodex } from './codex-session-resolver';
+import { enrichWorkspacesWithCodexSessionIds, observePtyInputForCodex, refreshCodexRestoreStateForAccountSwitch } from './codex-session-resolver';
 
 const ptyManager = new PtyManager();
 const notificationManager = new NotificationManager();
@@ -113,6 +113,8 @@ export function registerIpcHandlers(windowManager: WindowManager, cdpProxyInstan
 
   ipcMain.handle(IPC_CHANNELS.CODEX_LOGOUT, async () => {
     await runCodexLogout();
+    refreshCodexRestoreStateForAccountSwitch();
+    refreshSavedCodexAccountState();
     return { ok: true };
   });
 

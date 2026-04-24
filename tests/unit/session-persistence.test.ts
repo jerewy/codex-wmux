@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { saveSession, loadSession, SessionData } from '../../src/main/session-persistence';
+import { saveSession, loadSession, SessionData, refreshCodexWorkspacesForAccountSwitch } from '../../src/main/session-persistence';
 
 // Use a temp directory for tests
 const TEST_DIR = path.join(os.tmpdir(), 'wmux-test-sessions-' + process.pid);
@@ -146,5 +146,39 @@ describe('session-persistence', () => {
     ]);
     expect(session2Tree.children[0].surfaces[0].cwd).toBe('C:\\work\\api');
     expect(session2Tree.children[1].surfaces[0].cwd).toBe('C:\\work\\ui');
+  });
+
+  it('refreshes Codex workspace metadata without deleting workspace state', () => {
+    const [workspace] = refreshCodexWorkspacesForAccountSwitch([{
+      id: 'ws-codex',
+      title: 'Project',
+      pinned: false,
+      shell: 'pwsh.exe',
+      cwd: 'C:\\dev\\project',
+      splitTree: {
+        type: 'leaf',
+        paneId: 'pane-1',
+        surfaces: [{
+          id: 'surf-1',
+          type: 'terminal',
+          customTitle: 'Codex',
+          cwd: 'C:\\dev\\project',
+          initialCommand: 'codex resume 019daba5-0013-7842-a8e7-e8cb11630734 --model gpt-5.4 --no-alt-screen',
+          codexSessionId: '019daba5-0013-7842-a8e7-e8cb11630734',
+          codexSessionModel: 'gpt-5.4',
+        }],
+        activeSurfaceIndex: 0,
+      },
+    }]);
+
+    const surface = (workspace.splitTree as any).surfaces[0];
+    expect(workspace.title).toBe('Project');
+    expect(workspace.cwd).toBe('C:\\dev\\project');
+    expect(surface.cwd).toBe('C:\\dev\\project');
+    expect(surface.customTitle).toBe('Codex');
+    expect(surface.initialCommand).toBe('codex --no-alt-screen');
+    expect(surface.codexAccountRefreshed).toBe(true);
+    expect(surface.codexSessionId).toBeUndefined();
+    expect(surface.codexSessionModel).toBeUndefined();
   });
 });

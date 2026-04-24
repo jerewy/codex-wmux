@@ -207,6 +207,26 @@ export function clearSurfaceCodexActive(surfaceId: string): void {
   }
 }
 
+export function refreshCodexRestoreStateForAccountSwitch(): void {
+  codexSurfaceIds.clear();
+  ptyInputBuffers.clear();
+
+  for (const stateType of ['terminal-sessions', 'terminal-active-codex'] as const) {
+    const stateDir = path.join(getCodexStateRoot(), stateType);
+    try {
+      if (!fs.existsSync(stateDir)) continue;
+      for (const fileName of fs.readdirSync(stateDir)) {
+        const filePath = path.join(stateDir, fileName);
+        if (fs.statSync(filePath).isFile()) {
+          fs.writeFileSync(filePath, '', 'utf-8');
+        }
+      }
+    } catch {
+      // Best-effort refresh; do not block account switching on stale metadata.
+    }
+  }
+}
+
 function isCodexSurface(surface: any): boolean {
   const startsCodex = typeof surface?.initialCommand === 'string' && /^codex(\s|$)/i.test(surface.initialCommand.trim());
   return surface?.customTitle === 'Codex' || startsCodex || codexSurfaceIds.has(surface?.id);

@@ -7,6 +7,10 @@ function buildCodexResumeCommand(sessionId?: string, model?: string): string {
     : 'codex resume --last --no-alt-screen';
 }
 
+function buildCodexFreshCommand(): string {
+  return 'codex --no-alt-screen';
+}
+
 function restoreCodexSurfaces(node: SplitNode): SplitNode {
   if (node.type === 'branch') {
     return {
@@ -20,6 +24,20 @@ function restoreCodexSurfaces(node: SplitNode): SplitNode {
     surfaces: node.surfaces.map((surface) => {
       const startsCodex = typeof surface.initialCommand === 'string' && /^codex(\s|$)/i.test(surface.initialCommand.trim());
       if (surface.customTitle !== 'Codex' && !startsCodex && !surface.codexSessionId) return surface;
+
+      if (surface.codexAccountRefreshed) {
+        const {
+          codexSessionId: _codexSessionId,
+          codexSessionModel: _codexSessionModel,
+          codexAccountRefreshed: _codexAccountRefreshed,
+          ...freshSurface
+        } = surface;
+        return {
+          ...freshSurface,
+          customTitle: freshSurface.customTitle || 'Codex',
+          initialCommand: buildCodexFreshCommand(),
+        };
+      }
 
       return {
         ...surface,
