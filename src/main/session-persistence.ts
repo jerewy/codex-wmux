@@ -69,23 +69,12 @@ export function getSessionPath(): string {
   return SESSION_FILE;
 }
 
-/** Returns true if the app version changed (or first launch). Clears all stale session data. */
+/** Returns true if the app version changed (or first launch). Preserves saved sessions across upgrades. */
 export function handleVersionChange(currentVersion: string): boolean {
   ensureDirectories();
   try {
     const saved = fs.existsSync(VERSION_FILE) ? fs.readFileSync(VERSION_FILE, 'utf-8').trim() : '';
     if (saved === currentVersion) return false;
-    // Version changed — clear everything so users get a clean Session 1
-    try { if (fs.existsSync(SESSION_FILE)) fs.unlinkSync(SESSION_FILE); } catch {}
-    try { if (fs.existsSync(LAST_SESSION_FILE)) fs.unlinkSync(LAST_SESSION_FILE); } catch {}
-    // Clear named sessions (stale PTY references would freeze terminals)
-    try {
-      if (fs.existsSync(SAVED_DIR)) {
-        for (const f of fs.readdirSync(SAVED_DIR)) {
-          try { fs.unlinkSync(path.join(SAVED_DIR, f)); } catch {}
-        }
-      }
-    } catch {}
     fs.writeFileSync(VERSION_FILE, currentVersion, 'utf-8');
     return true;
   } catch { return false; }

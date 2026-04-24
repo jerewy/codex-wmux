@@ -218,12 +218,13 @@ export default function App() {
         const autoSession = await window.wmux?.session?.loadAuto?.();
         const autoWindow = autoSession?.windows?.[0];
         if (autoWindow?.workspaces?.length > 0) {
-          if (workspacesHaveCodexSession(autoWindow.workspaces)) {
-            const { replaceAllWorkspaces } = useStore.getState();
-            replaceAllWorkspaces(prepareWorkspacesForCodexAutoRestore(autoWindow.workspaces));
-            if (autoWindow.sidebarWidth) setSidebarWidth(autoWindow.sidebarWidth);
-            return;
-          }
+          const { replaceAllWorkspaces } = useStore.getState();
+          const workspacesToRestore = workspacesHaveCodexSession(autoWindow.workspaces)
+            ? prepareWorkspacesForCodexAutoRestore(autoWindow.workspaces)
+            : autoWindow.workspaces;
+          replaceAllWorkspaces(workspacesToRestore, autoWindow.activeWorkspaceId);
+          if (autoWindow.sidebarWidth) setSidebarWidth(autoWindow.sidebarWidth);
+          return;
         }
 
         const sessions = await window.wmux?.session?.list();
@@ -603,7 +604,10 @@ export default function App() {
     const session = await window.wmux?.session?.load(name);
     if (!session) return;
     const { replaceAllWorkspaces } = useStore.getState();
-    replaceAllWorkspaces(session.workspaces);
+    const workspacesToRestore = workspacesHaveCodexSession(session.workspaces)
+      ? prepareWorkspacesForCodexAutoRestore(session.workspaces)
+      : session.workspaces;
+    replaceAllWorkspaces(workspacesToRestore);
     if (session.sidebarWidth) setSidebarWidth(session.sidebarWidth);
   }, []);
 

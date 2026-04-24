@@ -16,7 +16,7 @@ export interface WorkspaceSlice {
   reorderWorkspaces(ids: WorkspaceId[]): void;
   updateWorkspaceMetadata(id: WorkspaceId, partial: Partial<WorkspaceInfo>): void;
   updateSplitTree(id: WorkspaceId, tree: SplitNode): void;
-  replaceAllWorkspaces(workspaces: Array<Partial<WorkspaceInfo>>): void;
+  replaceAllWorkspaces(workspaces: Array<Partial<WorkspaceInfo>>, activeWorkspaceId?: string | null): void;
 }
 
 // ─── Slice creator ───────────────────────────────────────────────────────────
@@ -113,22 +113,29 @@ export const createWorkspaceSlice: StateCreator<WorkspaceSlice> = (set, get) => 
     }));
   },
 
-  replaceAllWorkspaces(workspaceConfigs: Array<Partial<WorkspaceInfo>>): void {
-    const newWorkspaces: WorkspaceInfo[] = workspaceConfigs.map((config, i) => ({
-      id: `ws-${uuid()}` as WorkspaceId,
-      title: config.title ?? `Workspace ${i + 1}`,
-      pinned: config.pinned ?? false,
-      shell: config.shell || '',
-      splitTree: config.splitTree ?? createLeaf(),
-      unreadCount: 0,
-      customColor: config.customColor,
-      cwd: config.cwd,
-      browserUrl: config.browserUrl,
-    }));
+  replaceAllWorkspaces(workspaceConfigs: Array<Partial<WorkspaceInfo>>, activeWorkspaceId?: string | null): void {
+    let nextActiveWorkspaceId: WorkspaceId | null = null;
+    const newWorkspaces: WorkspaceInfo[] = workspaceConfigs.map((config, i) => {
+      const id = `ws-${uuid()}` as WorkspaceId;
+      if (config.id === activeWorkspaceId) {
+        nextActiveWorkspaceId = id;
+      }
+      return {
+        id,
+        title: config.title ?? `Workspace ${i + 1}`,
+        pinned: config.pinned ?? false,
+        shell: config.shell || '',
+        splitTree: config.splitTree ?? createLeaf(),
+        unreadCount: 0,
+        customColor: config.customColor,
+        cwd: config.cwd,
+        browserUrl: config.browserUrl,
+      };
+    });
 
     set({
       workspaces: newWorkspaces,
-      activeWorkspaceId: newWorkspaces.length > 0 ? newWorkspaces[0].id : null,
+      activeWorkspaceId: nextActiveWorkspaceId ?? (newWorkspaces.length > 0 ? newWorkspaces[0].id : null),
     });
   },
 });
