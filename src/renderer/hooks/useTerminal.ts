@@ -33,6 +33,8 @@ interface UseTerminalOptions {
   /** Per-surface color scheme override — takes priority over terminalPrefs.theme. */
   colorScheme?: string;
   initialCommand?: string;
+  reloadAppOnExit?: boolean;
+  closeWorkspaceOnExit?: boolean;
 }
 
 interface UseTerminalResult {
@@ -142,7 +144,17 @@ async function fetchTheme(name: string): Promise<ThemeConfig> {
   }
 }
 
-export function useTerminal({ surfaceId, shell, cwd, visible = true, focused = true, colorScheme, initialCommand }: UseTerminalOptions = {}): UseTerminalResult {
+export function useTerminal({
+  surfaceId,
+  shell,
+  cwd,
+  visible = true,
+  focused = true,
+  colorScheme,
+  initialCommand,
+  reloadAppOnExit,
+  closeWorkspaceOnExit,
+}: UseTerminalOptions = {}): UseTerminalResult {
   const terminalRef = useRef<HTMLDivElement | null>(null);
   const xtermRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -383,6 +395,16 @@ export function useTerminal({ surfaceId, shell, cwd, visible = true, focused = t
       // Wire PTY exit → inform user
       const unsubExit = window.wmux.pty.onExit(id, (_code: number) => {
         terminal.writeln('\r\n\x1b[2m[process exited]\x1b[0m');
+        if (surfaceId && (closeWorkspaceOnExit || reloadAppOnExit)) {
+          const state = useStore.getState();
+          const workspace = state.workspaces.find((ws) => treeHasSurface(ws.splitTree, surfaceId));
+          if (workspace && closeWorkspaceOnExit) {
+            state.closeWorkspace(workspace.id);
+          }
+          if (reloadAppOnExit) {
+            window.setTimeout(() => window.location.reload(), closeWorkspaceOnExit ? 1000 : 0);
+          }
+        }
       });
 
       cleanupFnsRef.current.push(unsubData, unsubExit);

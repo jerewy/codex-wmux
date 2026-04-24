@@ -120,13 +120,13 @@ function collectCodexSurfaceIds(tree: SplitNode): SurfaceId[] {
   return tree.surfaces.filter(isCodexSurface).map((surface) => surface.id);
 }
 
-function refreshCodexSurfacesForAccountSwitch(tree: SplitNode): SplitNode {
+function resetCodexSurfacesForAccountSwitch(tree: SplitNode): SplitNode {
   if (tree.type === 'branch') {
     return {
       ...tree,
       children: [
-        refreshCodexSurfacesForAccountSwitch(tree.children[0]),
-        refreshCodexSurfacesForAccountSwitch(tree.children[1]),
+        resetCodexSurfacesForAccountSwitch(tree.children[0]),
+        resetCodexSurfacesForAccountSwitch(tree.children[1]),
       ],
     };
   }
@@ -142,7 +142,6 @@ function refreshCodexSurfacesForAccountSwitch(tree: SplitNode): SplitNode {
       } = surface;
       return {
         ...surfaceWithoutOldSession,
-        id: `surf-${uuid()}` as SurfaceId,
         customTitle: surfaceWithoutOldSession.customTitle || 'Codex',
         initialCommand: 'codex --no-alt-screen',
         codexAccountRefreshed: true,
@@ -725,10 +724,10 @@ export default function App() {
     if (switchCodexAccountBusy) return;
 
     const codexWorkspaces = useStore.getState().workspaces.filter(isCodexWorkspace);
-    const confirmed = window.confirm(
+  const confirmed = window.confirm(
       `Switch Codex account for this Windows user?\n\n` +
       (codexWorkspaces.length > 0
-        ? `wmux will stop and refresh active Codex panes, but keep your workspace layout and local Codex history files.\n\n` +
+        ? `wmux will stop active Codex processes, keep the same panes/layout, and reload after login finishes.\n\n` +
           `Active Codex workspace${codexWorkspaces.length === 1 ? '' : 's'}: ${codexWorkspaces.map((ws) => ws.title).join(', ')}\n\n`
         : '') +
       `wmux will run "codex logout" and then open a new terminal with "codex login". ` +
@@ -747,7 +746,7 @@ export default function App() {
       for (const workspace of codexWorkspaces) {
         const latestWorkspace = useStore.getState().workspaces.find((item) => item.id === workspace.id);
         if (latestWorkspace) {
-          state.updateSplitTree(latestWorkspace.id, refreshCodexSurfacesForAccountSwitch(latestWorkspace.splitTree));
+          state.updateSplitTree(latestWorkspace.id, resetCodexSurfacesForAccountSwitch(latestWorkspace.splitTree));
         }
       }
       const cwd = await getStartupCodexFolder();
@@ -755,7 +754,19 @@ export default function App() {
         title: 'Codex Login',
         cwd,
         shell: '',
-        splitTree: buildCodexSplitTree('codex login'),
+        splitTree: {
+          type: 'leaf',
+          paneId: `pane-${uuid()}` as PaneId,
+          surfaces: [{
+            id: `surf-${uuid()}` as SurfaceId,
+            type: 'terminal',
+            customTitle: 'Codex Login',
+            initialCommand: 'codex login',
+            reloadAppOnExit: true,
+            closeWorkspaceOnExit: true,
+          }],
+          activeSurfaceIndex: 0,
+        },
       });
       selectWorkspace(workspaceId);
       window.wmux?.notification?.fire({

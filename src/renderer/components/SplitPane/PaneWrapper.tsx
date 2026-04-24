@@ -176,6 +176,8 @@ export default function PaneWrapper({ leaf, workspaceId, isFocused }: PaneWrappe
               cwd={surface.cwd || workspace?.cwd}
               colorScheme={surface.colorScheme}
               initialCommand={surface.initialCommand}
+              reloadAppOnExit={surface.reloadAppOnExit}
+              closeWorkspaceOnExit={surface.closeWorkspaceOnExit}
               focused={isFocused && isActive}
               visible={isVisible}
               showFindBar={findBarVisible && isFocused && isActive}

@@ -21,6 +21,8 @@ export interface SurfaceRef {
   codexSessionId?: string;
   codexSessionModel?: string;
   codexAccountRefreshed?: boolean;
+  reloadAppOnExit?: boolean;
+  closeWorkspaceOnExit?: boolean;
   /** Per-surface color scheme override (bundled theme name or user-defined scheme name). */
   colorScheme?: string;
 }
