@@ -8,10 +8,8 @@ interface UnreadBadgeProps {
 export default function UnreadBadge({ count, isSelected }: UnreadBadgeProps) {
   return (
     <span
-      className="unread-badge"
-      style={{
-        backgroundColor: isSelected ? 'rgba(255,255,255,0.25)' : '#0091FF',
-      }}
+      className={`unread-badge ${isSelected ? 'unread-badge--selected' : ''}`}
+      title={`${count} unread notification${count === 1 ? '' : 's'}`}
     >
       {count}
     </span>

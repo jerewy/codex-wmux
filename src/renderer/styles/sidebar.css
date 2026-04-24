@@ -201,15 +201,15 @@
 }
 
 .workspace-row__status--running {
-  color: #ff9800;
+  color: #f2a93b;
 }
 
 .workspace-row__status--working {
-  color: #ff9800;
+  color: #f2a93b;
 }
 
 .workspace-row__status--done {
-  color: #4caf50;
+  color: rgba(255, 255, 255, 0.78);
 }
 
 .workspace-row__status--interrupted {
@@ -225,7 +225,7 @@
 }
 
 .workspace-row--active .workspace-row__status--done {
-  color: #9af0a1;
+  color: #ffffff;
 }
 
 .workspace-row--active .workspace-row__status--interrupted {
@@ -288,25 +288,34 @@
 
 /* Unread badge */
 .unread-badge {
-  width: 16px;
-  height: 16px;
+  min-width: 13px;
+  height: 13px;
+  padding: 0 4px;
   border-radius: 50%;
-  background: #0091FF;
+  background: #5b8ff5;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14);
 }
 
 .unread-badge__count {
-  font-size: 9px;
-  font-weight: 600;
-  color: white;
-  line-height: 1;
+  display: none;
 }
 
+.unread-badge {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.unread-badge--selected,
 .workspace-row--active .unread-badge {
-  background: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.22);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.22);
 }
 
 /* Resize handle */
@@ -532,7 +541,7 @@
 }
 
 .workspace-row__state-dot--running {
-  background: #ff9800;
+  background: #f2a93b;
   animation: pulse-dot 1.2s ease-in-out infinite;
   will-change: opacity;
 }
@@ -542,8 +551,8 @@
 }
 
 .workspace-row__state-dot--done {
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 0 4px rgba(255, 255, 255, 0.25);
+  background: #ffffff;
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.3);
 }
 
 .workspace-row__state-dot--interrupted {
@@ -588,13 +597,14 @@
 }
 
 .workspace-row__agent-dot--working {
-  background: #ff9800;
+  background: #f2a93b;
   animation: pulse-dot 1.2s ease-in-out infinite;
   will-change: opacity;
 }
 
 .workspace-row__agent-dot--done {
-  background: #4caf50;
+  background: #ffffff;
+  box-shadow: 0 0 3px rgba(255, 255, 255, 0.25);
 }
 
 .workspace-row__agent-name {
