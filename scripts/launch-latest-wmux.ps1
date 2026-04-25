@@ -35,4 +35,8 @@ if ($PrintPath) {
   exit 0
 }
 
-Start-Process -FilePath $latest.Exe -ArgumentList $Arguments
+if ($Arguments.Count -gt 0) {
+  Start-Process -FilePath $latest.Exe -ArgumentList $Arguments
+} else {
+  Start-Process -FilePath $latest.Exe
+}
